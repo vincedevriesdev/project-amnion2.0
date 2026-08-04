@@ -18,7 +18,7 @@ export class ProtocolsService {
    * Returns valid TLS cert and key paths (Let's Encrypt or fallback self-signed)
    */
   private static getTlsCertificatePaths(): { certPath: string; keyPath: string } {
-    const domain = CONFIG.SERVER_DOMAIN || 'localhost';
+    const domain = (CONFIG.SERVER_DOMAIN && CONFIG.SERVER_DOMAIN.trim()) ? CONFIG.SERVER_DOMAIN.trim() : 'localhost';
     const leCert = `/etc/letsencrypt/live/${domain}/fullchain.pem`;
     const leKey = `/etc/letsencrypt/live/${domain}/privkey.pem`;
 
@@ -55,17 +55,17 @@ export class ProtocolsService {
     `).all() as any[];
 
     // Group active UUIDs per protocol
-    const hy2Users: { name: string; password: string }[] = [];
-    const tuicUsers: { name: string; uuid: string; password: string }[] = [];
-    const vlessUsers: { name: string; uuid: string; flow?: string }[] = [];
+    const hy2Users: { password: string }[] = [];
+    const tuicUsers: { uuid: string; password: string }[] = [];
+    const vlessUsers: { uuid: string; flow?: string }[] = [];
 
     for (const u of activeUsers) {
       if (u.protocol_type === 'hysteria2') {
-        hy2Users.push({ name: u.username, password: u.uuid });
+        hy2Users.push({ password: u.uuid });
       } else if (u.protocol_type === 'tuic') {
-        tuicUsers.push({ name: u.username, uuid: u.uuid, password: u.uuid });
+        tuicUsers.push({ uuid: u.uuid, password: u.uuid });
       } else if (u.protocol_type === 'vless_reality') {
-        vlessUsers.push({ name: u.username, uuid: u.uuid, flow: 'xtls-rprx-vision' });
+        vlessUsers.push({ uuid: u.uuid, flow: 'xtls-rprx-vision' });
       }
     }
 
@@ -74,6 +74,7 @@ export class ProtocolsService {
     let realityShortId = db.prepare("SELECT value FROM system_config WHERE key = 'reality_short_id'").get() as any;
 
     const tls = this.getTlsCertificatePaths();
+    const serverDomain = (CONFIG.SERVER_DOMAIN && CONFIG.SERVER_DOMAIN.trim()) ? CONFIG.SERVER_DOMAIN.trim() : (CONFIG.PUBLIC_IP || 'localhost');
 
     const inbounds: any[] = [
       // 1. Hysteria 2 Inbound (UDP 8443)
@@ -85,7 +86,7 @@ export class ProtocolsService {
         users: hy2Users,
         tls: {
           enabled: true,
-          server_name: CONFIG.SERVER_DOMAIN || 'localhost',
+          server_name: serverDomain,
           certificate_path: tls.certPath,
           key_path: tls.keyPath
         }
@@ -101,7 +102,7 @@ export class ProtocolsService {
         zero_rtt_handshake: true,
         tls: {
           enabled: true,
-          server_name: CONFIG.SERVER_DOMAIN || 'localhost',
+          server_name: serverDomain,
           alpn: ['h3'],
           certificate_path: tls.certPath,
           key_path: tls.keyPath
