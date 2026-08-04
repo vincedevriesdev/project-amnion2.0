@@ -143,8 +143,7 @@ export class ProtocolsService {
 
     return {
       log: {
-        level: 'warn',
-        output: '/var/log/sing-box/sing-box.log'
+        level: 'info'
       },
       inbounds,
       outbounds
