@@ -16,7 +16,7 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
     }
   });
 
-  // 2. Wildcard subscription token endpoint SECOND
+  // 2. Wildcard subscription token endpoint
   fastify.get('/:token', async (request: FastifyRequest, reply: FastifyReply) => {
     const { token } = request.params as any;
     if (!token || token === 'qr') {
@@ -27,13 +27,13 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
       const data = SubscriptionsService.getSubscriptionData(token);
 
       // Set headers for Hiddify / sing-box client compatibility
-      reply.header('Subscription-Userinfo', `upload=0; download=${data.user.usedBytes}; total=${data.user.dataLimitBytes}; expire=${data.user.expireAt ? new Date(data.user.expireAt).getTime() / 1000 : 0}`);
+      reply.header('Subscription-Userinfo', `upload=0; download=${data.user.usedBytes}; total=${data.user.dataLimitBytes}; expire=${data.user.expireAt ? Math.floor(new Date(data.user.expireAt).getTime() / 1000) : 0}`);
       reply.header('profile-update-interval', '6');
       reply.header('profile-title', `Amnion-${data.user.username}`);
       reply.header('Content-Type', 'text/plain; charset=utf-8');
 
-      // Return base64 encoded URI list (standard Hiddify / V2Ray subscription format)
-      return reply.send(data.base64Config);
+      // Return plain text URIs (supported natively by Hiddify Next, v2rayN, Shadowrocket)
+      return reply.send(data.plainTextConfig);
     } catch (err: any) {
       return reply.status(404).send({ error: err.message });
     }

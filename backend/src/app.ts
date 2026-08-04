@@ -61,12 +61,15 @@ async function startServer() {
         root: dashboardDist,
         prefix: '/'
       });
-      fastify.setNotFoundHandler((_request, reply) => {
+      fastify.setNotFoundHandler((request, reply) => {
+        if (request.url.startsWith('/api/')) {
+          return reply.status(404).send({ error: `API route niet gevonden: ${request.url}` });
+        }
         reply.sendFile('index.html');
       });
     }
 
-    // 4. Start Server Listening
+    // 5. Start Server Listening
     await fastify.listen({ port: CONFIG.PORT, host: CONFIG.HOST });
     console.log(`🚀 Amnion Backend Control Daemon running on http://${CONFIG.HOST}:${CONFIG.PORT}`);
   } catch (err) {

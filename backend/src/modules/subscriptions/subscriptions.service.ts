@@ -1,17 +1,30 @@
 import { db } from '../../core/database/db.js';
 import { CONFIG } from '../../core/config/env.js';
+import { generateUUID } from '../../core/utils/crypto.js';
 import QRCode from 'qrcode';
 
 export class SubscriptionsService {
   static getSubscriptionData(token: string) {
-    const tokenRecord = db.prepare('SELECT user_id FROM subscription_tokens WHERE token = ? AND is_active = 1').get(token) as any;
-    if (!tokenRecord) {
-      throw new Error('Ongeldige of verlopen abonnementstoken');
+    let tokenRecord = db.prepare('SELECT user_id FROM subscription_tokens WHERE token = ? AND is_active = 1').get(token) as any;
+    let user: any = null;
+
+    if (tokenRecord) {
+      user = db.prepare('SELECT * FROM users WHERE id = ?').get(tokenRecord.user_id) as any;
+    } else {
+      // Fallback lookup by user UUID or ID directly for maximum reliability
+      user = db.prepare('SELECT * FROM users WHERE uuid = ? OR id = ?').get(token, token) as any;
+      if (user) {
+        db.prepare('INSERT OR REPLACE INTO subscription_tokens (id, user_id, token, is_active) VALUES (?, ?, ?, 1)')
+          .run(generateUUID(), user.id, token);
+      }
     }
 
-    const user = db.prepare('SELECT * FROM users WHERE id = ? AND status = "active"').get(tokenRecord.user_id) as any;
     if (!user) {
-      throw new Error('Gebruiker is niet actief');
+      throw new Error(`Abonnementstoken niet gevonden: ${token}`);
+    }
+
+    if (user.status !== 'active') {
+      throw new Error(`Gebruiker '${user.username}' is niet actief (status: ${user.status})`);
     }
 
     const protocols = db.prepare('SELECT protocol_type FROM user_protocols WHERE user_id = ? AND is_enabled = 1').all(user.id) as any[];
@@ -28,6 +41,7 @@ export class SubscriptionsService {
     const pubKeyStr = realityPubKey ? realityPubKey.value : 'PUBLIC_KEY_PLACEHOLDER';
     const shortIdStr = realityShortId ? realityShortId.value : 'a1b2c3d4';
 
+    // Build URI list for active protocols
     for (const p of protocols) {
       if (p.protocol_type === 'hysteria2') {
         const hy2 = `hysteria2://${user.uuid}@${host}:8443/?insecure=1&sni=${sniDomain}#Amnion-HY2-${user.username}`;
@@ -41,15 +55,25 @@ export class SubscriptionsService {
       }
     }
 
+    // If no protocols enabled yet, generate default VLESS + HY2 URIs
+    if (uris.length === 0) {
+      uris.push(`hysteria2://${user.uuid}@${host}:8443/?insecure=1&sni=${sniDomain}#Amnion-HY2-${user.username}`);
+      uris.push(`vless://${user.uuid}@${host}:443?type=tcp&security=reality&pbk=${pubKeyStr}&fp=chrome&sni=dl.google.com&sid=${shortIdStr}&flow=xtls-rprx-vision#Amnion-VLESS-${user.username}`);
+    }
+
+    const plainTextConfig = uris.join('\n');
+    const base64Config = Buffer.from(plainTextConfig).toString('base64');
+
     return {
       user: {
         username: user.username,
-        dataLimitBytes: user.data_limit_bytes,
-        usedBytes: user.used_bytes,
+        dataLimitBytes: user.data_limit_bytes || 0,
+        usedBytes: user.used_bytes || 0,
         expireAt: user.expire_at
       },
       uris,
-      base64Config: Buffer.from(uris.join('\n')).toString('base64')
+      plainTextConfig,
+      base64Config
     };
   }
 
