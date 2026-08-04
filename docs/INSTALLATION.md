@@ -5,7 +5,7 @@
 Voer het onderstaande commando uit op een schone Ubuntu VPS als `root`:
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/vincedevriesdev/project-amnion2.0/main/install/install.sh)
+bash <(curl -fsSL -H "Cache-Control: no-cache" https://raw.githubusercontent.com/vincedevriesdev/project-amnion2.0/main/install/install.sh)
 ```
 
 ### Wat het installatiescript automatisch uitvoert:
