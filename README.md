@@ -25,7 +25,7 @@
 Voer het volgende commando uit als `root` op een schone Ubuntu VPS:
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/project-amnion/project-amnion/main/install/install.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/vincedevriesdev/project-amnion2.0/main/install/install.sh)
 ```
 
 ---
