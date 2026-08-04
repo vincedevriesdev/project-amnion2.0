@@ -104,6 +104,16 @@ mkdir -p /etc/sing-box
 mkdir -p /var/log/sing-box
 mkdir -p /var/lib/amnion
 
+if [[ ! -f /etc/sing-box/config.json ]]; then
+    cat << 'EOF' > /etc/sing-box/config.json
+{
+  "log": { "level": "info" },
+  "inbounds": [],
+  "outbounds": [{ "type": "direct", "tag": "direct" }]
+}
+EOF
+fi
+
 rm -rf /opt/amnion
 git clone https://github.com/vincedevriesdev/project-amnion2.0.git /opt/amnion
 
