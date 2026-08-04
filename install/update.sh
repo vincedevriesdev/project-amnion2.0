@@ -95,6 +95,17 @@ npm run build
 
 # 4. Validate Sing-box Config
 echo -e "${YELLOW}[4/5] Sing-box configuratie valideren...${NC}"
+mkdir -p /etc/sing-box
+if [[ ! -f /etc/sing-box/config.json ]]; then
+    cat << 'EOF' > /etc/sing-box/config.json
+{
+  "log": { "level": "info" },
+  "inbounds": [],
+  "outbounds": [{ "type": "direct", "tag": "direct" }]
+}
+EOF
+fi
+
 if command -v sing-box &> /dev/null; then
     sing-box check -c /etc/sing-box/config.json
     echo -e "${GREEN}[OK] Sing-box configuratie validatie geslaagd.${NC}"
@@ -103,7 +114,7 @@ fi
 # 5. Reload Services & Verify Health
 echo -e "${YELLOW}[5/5] Services herstarten en API gezondheid valideren...${NC}"
 systemctl daemon-reload
-systemctl restart sing-box
+systemctl restart sing-box || true
 systemctl restart amnion-backend
 
 # Health verification check
