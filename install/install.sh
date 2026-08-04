@@ -97,16 +97,15 @@ rm -rf "${TMP_DIR}"
 
 echo -e "${GREEN}[OK] sing-box $(sing-box version | head -n 1) geïnstalleerd.${NC}"
 
-# 8. Setup Directory Structure & Clone/Copy Amnion Codebase
-echo -e "${YELLOW}[3/7] Amnion codebase klaarmaken in /opt/amnion...${NC}"
-mkdir -p /opt/amnion
+# 8. Setup Directory Structure & Download Amnion Codebase
+echo -e "${YELLOW}[3/7] Amnion codebase downloaden van GitHub naar /opt/amnion...${NC}"
 mkdir -p /etc/amnion
 mkdir -p /etc/sing-box
 mkdir -p /var/log/sing-box
 mkdir -p /var/lib/amnion
 
-# Copy project files to /opt/amnion
-cp -r . /opt/amnion/
+rm -rf /opt/amnion
+git clone https://github.com/vincedevriesdev/project-amnion2.0.git /opt/amnion
 
 # 9. Build Backend & Dashboard
 echo -e "${YELLOW}[4/7] Backend en Dashboard bouwen...${NC}"
