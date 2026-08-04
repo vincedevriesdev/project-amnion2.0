@@ -11,12 +11,12 @@
 
 ## 🔑 Belangrijkste Kenmerken
 
-- 🚀 **Multi-protocol Ondersteuning**: Beheer **Hysteria2**, **TUIC**, en **VLESS + REALITY** vanuit één centraal dashboard.
-- 📲 **Naadloze Hiddify Next Integratie**: Automatische generatie van Hiddify-compatibele configuraties, QR-codes en abonnement-links.
+- 🚀 **Multi-protocol Engine**: Beheer **Hysteria 2 (UDP 8443)**, **TUIC v5 (UDP 8444)**, en **VLESS + REALITY (TCP 443)** vanuit één centraal dashboard.
+- 📲 **Naadloze Hiddify Next Integratie**: Automatische generatie van Hiddify-compatibele configuraties, QR-codes en self-healing abonnement-links.
 - ⚡ **Extreem Lichtgewicht**: Geoptimaliseerd voor VPS-omgevingen met beperkte opslag (minder dan 500 MB schijfruimte en <100 MB RAM-geheugen).
 - 🛡️ **Hoge Beveiliging**: Geïntegreerde Argon2id hashing, JWT/Session-authenticatie, CSRF-bescherming, rate-limiting en geautomatiseerde Let's Encrypt TLS-vernieuwing.
-- 📊 **Real-time Monitoring**: Direct inzicht in CPU, RAM, netwerkbandbreedte, actieve sessies en protocolverdeling.
-- 📦 **Automated Installer & Updater**: Eenvoudige installatie en veilige updates zonder verlies van gebruikersdata of instellingen.
+- 📊 **Real-time Monitoring & Analyses**: Direct inzicht in CPU, RAM, SSD schijfgebruik, live RX/TX netwerksnelheid, actieve sessies en protocolverdeling.
+- 🔄 **Automated Installer & Live Update Engine**: Eenvoudige 1-line installatie, live voortgangstracker op het dashboard en geautomatiseerde tarball rollbacks bij fouten.
 
 ---
 
@@ -37,7 +37,16 @@ Na de installatie is het Web Dashboard bereikbaar via `http://<JOUW-VPS-IP>:3000
 
 > [!CAUTION]
 > **BELANGRIJK VOOR JE BEVEILIGING**:
-> Pas het standaard wachtwoord **direct aan** na de eerste keer inloggen! Dit kan vanuit het instellingen/gebruikers menu in het dashboard.
+> Pas het standaard wachtwoord **direct aan** na de eerste keer inloggen! Dit kan vanuit de **Instellingen** in het dashboard.
+
+---
+
+## 🔄 Updates Uitvoeren
+
+Je kunt Project Amnion 2.0 op twee manieren bijwerken naar de nieuwste versie:
+
+1. **Via het Dashboard Panel**: Ga naar **Instellingen** ➔ **Amnion 2.0 Update Uitvoeren** en volg de live voortgangsindicator!
+2. **Via de VPS Terminal**: Voer `bash /opt/amnion/install/update.sh` uit op je VPS als `root`.
 
 ---
 
@@ -58,9 +67,9 @@ project-amnion/
 
 ## 📖 Documentatie
 
+- [Installatie-, Update- & Diagnosehandleiding](docs/INSTALLATION.md)
 - [Architectuur Overzicht](docs/ARCHITECTURE.md)
 - [Ondersteunde Protocollen & Netwerkcompatibiliteit](docs/PROTOCOLS.md)
-- [Installatie- & Update-instructies](docs/INSTALLATION.md)
 
 ---
 
