@@ -2,6 +2,16 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { api } from '../api/client';
 
+export interface UpdateProgress {
+  active: boolean;
+  step: number;
+  progressPercent: number;
+  message: string;
+  error: string | null;
+  startTime: string | null;
+  completedAt: string | null;
+}
+
 export const useSystemStore = defineStore('system', () => {
   const stats = ref<any>({
     version: 'v2.0.0',
@@ -21,6 +31,16 @@ export const useSystemStore = defineStore('system', () => {
 
   const logs = ref<string>('');
   const realityDetails = ref<{ publicKey: string; shortId: string } | null>(null);
+  const updateProgress = ref<UpdateProgress>({
+    active: false,
+    step: 0,
+    progressPercent: 0,
+    message: '',
+    error: null,
+    startTime: null,
+    completedAt: null
+  });
+
   const loading = ref<boolean>(false);
 
   async function fetchStats() {
@@ -55,6 +75,17 @@ export const useSystemStore = defineStore('system', () => {
     }
   }
 
+  async function fetchUpdateStatus() {
+    try {
+      const res = await api.get('/system/update-status');
+      updateProgress.value = res.data;
+      return res.data;
+    } catch (err) {
+      console.error('Failed to fetch update status:', err);
+      return null;
+    }
+  }
+
   async function reloadSingBox() {
     const res = await api.post('/system/reload-singbox');
     return res.data;
@@ -62,6 +93,7 @@ export const useSystemStore = defineStore('system', () => {
 
   async function triggerUpdate() {
     const res = await api.post('/system/update');
+    await fetchUpdateStatus();
     return res.data;
   }
 
@@ -70,5 +102,18 @@ export const useSystemStore = defineStore('system', () => {
     return res.data;
   }
 
-  return { stats, logs, realityDetails, loading, fetchStats, fetchLogs, fetchRealityInfo, reloadSingBox, triggerUpdate, triggerRollback };
+  return {
+    stats,
+    logs,
+    realityDetails,
+    updateProgress,
+    loading,
+    fetchStats,
+    fetchLogs,
+    fetchRealityInfo,
+    fetchUpdateStatus,
+    reloadSingBox,
+    triggerUpdate,
+    triggerRollback
+  };
 });

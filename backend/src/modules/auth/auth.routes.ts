@@ -6,7 +6,7 @@ export async function authRoutes(fastify: FastifyInstance) {
   fastify.post('/login', {
     config: {
       rateLimit: {
-        max: 5,
+        max: 30,
         timeWindow: '15 minutes'
       }
     }

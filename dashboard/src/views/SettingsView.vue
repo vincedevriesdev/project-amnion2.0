@@ -92,14 +92,26 @@
         </button>
       </div>
     </div>
+
+    <!-- Live Update Progress Modal -->
+    <UpdateProgressModal
+      :isOpen="showUpdateModal"
+      :step="systemStore.updateProgress.step"
+      :progressPercent="systemStore.updateProgress.progressPercent"
+      :message="systemStore.updateProgress.message"
+      :isFinished="systemStore.updateProgress.progressPercent === 100"
+      :isError="!!systemStore.updateProgress.error"
+      @close="showUpdateModal = false"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { useAuthStore } from '../stores/auth';
 import { useSystemStore } from '../stores/system';
 import { useRouter } from 'vue-router';
+import UpdateProgressModal from '../components/UpdateProgressModal.vue';
 
 const authStore = useAuthStore();
 const systemStore = useSystemStore();
@@ -114,12 +126,19 @@ const pwdForm = ref({
 const submitting = ref(false);
 const updating = ref(false);
 const rollingBack = ref(false);
+const showUpdateModal = ref(false);
 
 const toastMessage = ref('');
 const toastSuccess = ref(true);
 
+let pollTimer: any = null;
+
 onMounted(() => {
   systemStore.fetchRealityInfo();
+});
+
+onUnmounted(() => {
+  if (pollTimer) clearInterval(pollTimer);
 });
 
 async function handleChangePassword() {
@@ -153,11 +172,18 @@ async function handleChangePassword() {
 async function handleTriggerUpdate() {
   if (!confirm('Weet je zeker dat je een geautomatiseerde update wilt uitvoeren? Er wordt eerst een backup gemaakt.')) return;
   updating.value = true;
-  toastMessage.value = '';
+  showUpdateModal.value = true;
+  
   try {
-    const res = await systemStore.triggerUpdate();
-    toastSuccess.value = true;
-    toastMessage.value = res.message;
+    await systemStore.triggerUpdate();
+
+    // Start polling update status every 2 seconds
+    pollTimer = setInterval(async () => {
+      const status = await systemStore.fetchUpdateStatus();
+      if (status && (!status.active || status.progressPercent === 100 || status.error)) {
+        clearInterval(pollTimer);
+      }
+    }, 2000);
   } catch (err: any) {
     toastSuccess.value = false;
     toastMessage.value = err.response?.data?.error || 'Update kon niet worden gestart.';

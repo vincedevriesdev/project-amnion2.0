@@ -24,6 +24,10 @@ export async function systemRoutes(fastify: FastifyInstance) {
     return { status: 'ok', message: result.message };
   });
 
+  fastify.get('/update-status', async () => {
+    return SystemService.getUpdateStatus();
+  });
+
   fastify.post('/rollback', async (request: FastifyRequest, reply: FastifyReply) => {
     const result = await SystemService.triggerRollback();
     if (!result.success) {
