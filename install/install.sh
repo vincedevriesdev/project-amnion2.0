@@ -58,7 +58,7 @@ fi
 echo -e "${GREEN}[OK] CPU-architectuur gedetecteerd: ${ARCH} (${SINGBOX_ARCH})${NC}"
 
 # 4. Fetch Public IP
-PUBLIC_IP=$(curl -s --max-time 10 https://ifconfig.me || echo "127.0.0.1")
+PUBLIC_IP=$(curl -s4 --max-time 10 https://ifconfig.me || curl -s --max-time 10 https://ifconfig.me || echo "127.0.0.1")
 echo -e "${GREEN}[OK] Publiek IP-adres: ${PUBLIC_IP}${NC}"
 
 # 5. Interactive Domain & Email Inputs
