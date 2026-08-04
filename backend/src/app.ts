@@ -5,6 +5,7 @@ import fastifyRateLimit from '@fastify/rate-limit';
 import { CONFIG } from './core/config/env.js';
 import { initDatabase } from './core/database/db.js';
 import { AuthService } from './modules/auth/auth.service.js';
+import { SystemService } from './modules/system/system.service.js';
 import { authRoutes } from './modules/auth/auth.routes.js';
 import { usersRoutes } from './modules/users/users.routes.js';
 import { subscriptionsRoutes } from './modules/subscriptions/subscriptions.routes.js';
@@ -26,6 +27,13 @@ async function startServer() {
     // 1. Initialize SQLite Database & Tables
     initDatabase();
     await AuthService.createInitialAdminIfNone();
+
+    // Automatically sync & write sing-box config on backend startup
+    try {
+      await SystemService.syncAndReloadSingBox();
+    } catch (syncErr) {
+      console.error('Initial sing-box sync warning:', syncErr);
+    }
 
     // 2. Register Middleware Plugins
     await fastify.register(fastifyCors, {
