@@ -16,7 +16,9 @@ export class SubscriptionsService {
 
     const protocols = db.prepare('SELECT protocol_type FROM user_protocols WHERE user_id = ? AND is_enabled = 1').all(user.id) as any[];
 
-    const host = CONFIG.SERVER_DOMAIN || CONFIG.PUBLIC_IP;
+    const rawHost = CONFIG.SERVER_DOMAIN || CONFIG.PUBLIC_IP || '127.0.0.1';
+    const host = rawHost.trim();
+    const sniDomain = (CONFIG.SERVER_DOMAIN && CONFIG.SERVER_DOMAIN.trim()) ? CONFIG.SERVER_DOMAIN.trim() : host;
     const uris: string[] = [];
 
     // Read REALITY public key from DB
@@ -28,10 +30,10 @@ export class SubscriptionsService {
 
     for (const p of protocols) {
       if (p.protocol_type === 'hysteria2') {
-        const hy2 = `hysteria2://${user.uuid}@${host}:8443/?insecure=0&sni=${CONFIG.SERVER_DOMAIN}#Amnion-HY2-${user.username}`;
+        const hy2 = `hysteria2://${user.uuid}@${host}:8443/?insecure=1&sni=${sniDomain}#Amnion-HY2-${user.username}`;
         uris.push(hy2);
       } else if (p.protocol_type === 'tuic') {
-        const tuic = `tuic://${user.uuid}:${user.uuid}@${host}:8444/?congestion_control=bbr&udp_relay_mode=native&sni=${CONFIG.SERVER_DOMAIN}#Amnion-TUIC-${user.username}`;
+        const tuic = `tuic://${user.uuid}:${user.uuid}@${host}:8444/?congestion_control=bbr&udp_relay_mode=native&alpn=h3&sni=${sniDomain}#Amnion-TUIC-${user.username}`;
         uris.push(tuic);
       } else if (p.protocol_type === 'vless_reality') {
         const vless = `vless://${user.uuid}@${host}:443?type=tcp&security=reality&pbk=${pubKeyStr}&fp=chrome&sni=dl.google.com&sid=${shortIdStr}&flow=xtls-rprx-vision#Amnion-VLESS-${user.username}`;
