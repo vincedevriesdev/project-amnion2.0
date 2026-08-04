@@ -1,0 +1,17 @@
+[Unit]
+Description=Project Amnion 2.0 Backend Control Daemon
+After=network.target sqlite3.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/amnion/backend
+ExecStart=/usr/bin/npm start
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+EnvironmentFile=/etc/amnion/env
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target
