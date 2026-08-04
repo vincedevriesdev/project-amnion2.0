@@ -26,8 +26,17 @@ export async function subscriptionsRoutes(fastify: FastifyInstance) {
     try {
       const data = SubscriptionsService.getSubscriptionData(token);
 
-      // Set headers for Hiddify / sing-box client compatibility
-      reply.header('Subscription-Userinfo', `upload=0; download=${data.user.usedBytes}; total=${data.user.dataLimitBytes}; expire=${data.user.expireAt ? Math.floor(new Date(data.user.expireAt).getTime() / 1000) : 0}`);
+      // Format Subscription-Userinfo header according to Clash/Hiddify spec
+      // Omit 'total' when data limit is 0 (Unlimited) so Hiddify displays 'Unlimited'
+      let userInfoHeader = `upload=0; download=${data.user.usedBytes}`;
+      if (data.user.dataLimitBytes && data.user.dataLimitBytes > 0) {
+        userInfoHeader += `; total=${data.user.dataLimitBytes}`;
+      }
+      if (data.user.expireAt) {
+        userInfoHeader += `; expire=${Math.floor(new Date(data.user.expireAt).getTime() / 1000)}`;
+      }
+
+      reply.header('Subscription-Userinfo', userInfoHeader);
       reply.header('profile-update-interval', '6');
       reply.header('profile-title', `Amnion-${data.user.username}`);
       reply.header('Content-Type', 'text/plain; charset=utf-8');
