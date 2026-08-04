@@ -21,11 +21,12 @@ export async function authRoutes(fastify: FastifyInstance) {
       const userAgent = request.headers['user-agent'] || '';
       const result = await AuthService.login(username, password, ip, userAgent);
 
+      const isHttps = request.protocol === 'https';
       reply.setCookie('amnion_session', result.rawToken, {
         path: '/',
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        secure: isHttps,
+        sameSite: 'lax',
         expires: new Date(result.expiresAt)
       });
 

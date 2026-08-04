@@ -1,115 +1,115 @@
 <template>
-  <div class="max-w-7xl mx-auto px-6 py-8">
-    <div class="flex items-center justify-between mb-8">
+  <div>
+    <div class="page-header">
       <div>
-        <h1 class="text-2xl font-extrabold text-white">Gebruikersbeheer</h1>
-        <p class="text-sm text-slate-400">Beheer VPN-gebruikers, Hiddify-configuraties en actieve protocollen</p>
+        <h1 class="page-title">Gebruikersbeheer</h1>
+        <p class="page-subtitle">Beheer VPN-gebruikers, Hiddify-configuraties en actieve protocollen</p>
       </div>
 
-      <button @click="openAddModal" class="btn-primary text-sm">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+      <button @click="openAddModal" class="btn btn-primary">
+        <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
         Nieuwe Gebruiker
       </button>
     </div>
 
     <!-- Users Data Table -->
-    <div class="glass-card overflow-hidden">
-      <div class="overflow-x-auto">
-        <table class="w-full text-left text-sm text-slate-300">
-          <thead class="bg-slate-900/80 text-xs text-slate-400 uppercase font-semibold border-b border-white/10">
-            <tr>
-              <th class="px-6 py-4">Gebruiker</th>
-              <th class="px-6 py-4">Status</th>
-              <th class="px-6 py-4">Actieve Protocollen</th>
-              <th class="px-6 py-4">Hiddify Subscriptie</th>
-              <th class="px-6 py-4 text-right">Acties</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-white/5">
-            <tr v-for="user in userStore.users" :key="user.id" class="hover:bg-white/[0.02] transition">
-              <!-- Username & UUID -->
-              <td class="px-6 py-4">
-                <div class="font-bold text-white">{{ user.username }}</div>
-                <div class="text-xs text-slate-500 font-mono mt-0.5">{{ user.uuid }}</div>
-              </td>
+    <div class="table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Gebruiker</th>
+            <th>Status</th>
+            <th>Actieve Protocollen</th>
+            <th>Hiddify Subscriptie</th>
+            <th style="text-align: right;">Acties</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="user in userStore.users" :key="user.id">
+            <!-- Username & UUID -->
+            <td>
+              <div style="font-weight: 700; color: #fff; font-size: 15px;">{{ user.username }}</div>
+              <div class="font-mono" style="font-size: 11px; color: var(--text-dim); margin-top: 2px;">{{ user.uuid }}</div>
+            </td>
 
-              <!-- Status -->
-              <td class="px-6 py-4">
-                <span class="badge" :class="user.status === 'active' ? 'badge-active' : 'bg-red-500/15 text-red-400 border border-red-500/30'">
-                  {{ user.status }}
+            <!-- Status -->
+            <td>
+              <span class="badge" :class="user.status === 'active' ? 'badge-emerald' : 'badge-red'">
+                {{ user.status }}
+              </span>
+            </td>
+
+            <!-- Enabled Protocols -->
+            <td>
+              <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                <span v-for="p in user.protocols" :key="p.protocol_type" v-show="p.is_enabled" class="badge" :class="getProtocolBadgeClass(p.protocol_type)">
+                  {{ getProtocolLabel(p.protocol_type) }}
                 </span>
-              </td>
+              </div>
+            </td>
 
-              <!-- Enabled Protocols -->
-              <td class="px-6 py-4">
-                <div class="flex items-center gap-1.5 flex-wrap">
-                  <span v-for="p in user.protocols" :key="p.protocol_type" v-show="p.is_enabled" class="badge" :class="getProtocolBadgeClass(p.protocol_type)">
-                    {{ getProtocolLabel(p.protocol_type) }}
-                  </span>
-                </div>
-              </td>
+            <!-- Hiddify Subscription QR & Link -->
+            <td>
+              <button @click="openQrModal(user)" class="btn btn-secondary btn-sm" style="gap: 6px;">
+                <svg style="width: 16px; height: 16px; color: var(--emerald-primary);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
+                QR & Sub Link
+              </button>
+            </td>
 
-              <!-- Hiddify Subscription QR & Link -->
-              <td class="px-6 py-4">
-                <button @click="openQrModal(user)" class="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5">
-                  <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
-                  QR & Sub Link
-                </button>
-              </td>
+            <!-- Actions -->
+            <td style="text-align: right;">
+              <div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px;">
+                <button @click="openEditModal(user)" class="btn btn-secondary btn-sm">Bewerken</button>
+                <button @click="handleDelete(user.id)" class="btn btn-danger btn-sm">Verwijderen</button>
+              </div>
+            </td>
+          </tr>
 
-              <!-- Actions -->
-              <td class="px-6 py-4 text-right">
-                <div class="flex items-center justify-end gap-2">
-                  <button @click="openEditModal(user)" class="btn-secondary text-xs px-2.5 py-1">Bewerken</button>
-                  <button @click="handleDelete(user.id)" class="btn-danger text-xs px-2.5 py-1">Verwijderen</button>
-                </div>
-              </td>
-            </tr>
-
-            <tr v-if="userStore.users.length === 0">
-              <td colspan="5" class="px-6 py-8 text-center text-slate-500">
-                Nog geen gebruikers aangemaakt. Klik op "Nieuwe Gebruiker" om te beginnen.
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+          <tr v-if="userStore.users.length === 0">
+            <td colspan="5" style="text-align: center; padding: 40px; color: var(--text-dim);">
+              Nog geen gebruikers aangemaakt. Klik op "Nieuwe Gebruiker" om te beginnen.
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
     <!-- Add/Edit User Modal -->
     <div class="modal-backdrop" v-if="showModal" @click.self="closeModal">
-      <div class="glass-card p-6 w-full max-w-lg">
-        <h3 class="text-lg font-heading font-bold text-white mb-4">{{ isEditing ? 'Gebruiker Bewerken' : 'Nieuwe Gebruiker Toevoegen' }}</h3>
+      <div class="modal-box">
+        <h3 style="font-size: 20px; font-weight: 800; color: #fff; margin-bottom: 20px;">
+          {{ isEditing ? 'Gebruiker Bewerken' : 'Nieuwe Gebruiker Toevoegen' }}
+        </h3>
 
-        <form @submit.prevent="saveUser" class="space-y-4">
-          <div>
-            <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Gebruikersnaam</label>
+        <form @submit.prevent="saveUser">
+          <div class="form-group">
+            <label class="form-label">Gebruikersnaam</label>
             <input type="text" v-model="form.username" required :disabled="isEditing" class="input-field" placeholder="bijv. vince-phone" />
           </div>
 
-          <div>
-            <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Toegewezen Protocollen</label>
-            <div class="space-y-2">
-              <label class="flex items-center gap-3 bg-slate-900/60 p-3 rounded-lg border border-white/5 cursor-pointer">
-                <input type="checkbox" value="hysteria2" v-model="form.protocols" class="rounded border-slate-700 text-emerald-500 focus:ring-0" />
-                <span class="text-sm font-semibold text-white">Hysteria 2 (UDP QUIC)</span>
+          <div class="form-group">
+            <label class="form-label">Toegewezen Protocollen</label>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <label style="background: rgba(30, 41, 59, 0.6); padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border-glass); display: flex; align-items: center; gap: 12px; cursor: pointer;">
+                <input type="checkbox" value="hysteria2" v-model="form.protocols" style="width: 18px; height: 18px; accent-color: var(--emerald-primary);" />
+                <span style="font-size: 14px; font-weight: 600; color: #fff;">Hysteria 2 (UDP QUIC)</span>
               </label>
 
-              <label class="flex items-center gap-3 bg-slate-900/60 p-3 rounded-lg border border-white/5 cursor-pointer">
-                <input type="checkbox" value="tuic" v-model="form.protocols" class="rounded border-slate-700 text-emerald-500 focus:ring-0" />
-                <span class="text-sm font-semibold text-white">TUIC v5 (UDP 0-RTT)</span>
+              <label style="background: rgba(30, 41, 59, 0.6); padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border-glass); display: flex; align-items: center; gap: 12px; cursor: pointer;">
+                <input type="checkbox" value="tuic" v-model="form.protocols" style="width: 18px; height: 18px; accent-color: var(--emerald-primary);" />
+                <span style="font-size: 14px; font-weight: 600; color: #fff;">TUIC v5 (UDP 0-RTT)</span>
               </label>
 
-              <label class="flex items-center gap-3 bg-slate-900/60 p-3 rounded-lg border border-white/5 cursor-pointer">
-                <input type="checkbox" value="vless_reality" v-model="form.protocols" class="rounded border-slate-700 text-emerald-500 focus:ring-0" />
-                <span class="text-sm font-semibold text-white">VLESS + REALITY (TCP TLS Camouflage)</span>
+              <label style="background: rgba(30, 41, 59, 0.6); padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border-glass); display: flex; align-items: center; gap: 12px; cursor: pointer;">
+                <input type="checkbox" value="vless_reality" v-model="form.protocols" style="width: 18px; height: 18px; accent-color: var(--emerald-primary);" />
+                <span style="font-size: 14px; font-weight: 600; color: #fff;">VLESS + REALITY (TCP TLS Camouflage)</span>
               </label>
             </div>
           </div>
 
-          <div class="flex justify-end gap-3 mt-6">
-            <button type="button" @click="closeModal" class="btn-secondary text-sm">Annuleren</button>
-            <button type="submit" class="btn-primary text-sm">{{ isEditing ? 'Opslaan' : 'Aanmaken & Genereer Config' }}</button>
+          <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 28px;">
+            <button type="button" @click="closeModal" class="btn btn-secondary">Annuleren</button>
+            <button type="submit" class="btn btn-primary">{{ isEditing ? 'Opslaan' : 'Aanmaken & Genereer Config' }}</button>
           </div>
         </form>
       </div>
@@ -196,9 +196,9 @@ function openQrModal(user: VpnUser) {
 }
 
 function getProtocolBadgeClass(type: string) {
-  if (type === 'hysteria2') return 'badge-hy2';
-  if (type === 'tuic') return 'badge-tuic';
-  return 'badge-vless';
+  if (type === 'hysteria2') return 'badge-cyan';
+  if (type === 'tuic') return 'badge-purple';
+  return 'badge-amber';
 }
 
 function getProtocolLabel(type: string) {

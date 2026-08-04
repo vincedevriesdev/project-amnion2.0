@@ -1,7 +1,7 @@
 <template>
-  <div class="min-h-screen flex flex-col bg-slate-950 text-slate-100">
+  <div class="app-wrapper">
     <Navbar v-if="authStore.isAuthenticated" />
-    <main class="flex-1">
+    <main class="main-content" :style="!authStore.isAuthenticated ? 'padding: 0;' : ''">
       <router-view />
     </main>
   </div>

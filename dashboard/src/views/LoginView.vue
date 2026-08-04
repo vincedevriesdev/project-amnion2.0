@@ -1,35 +1,35 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center p-4">
-    <div class="glass-card p-8 w-full max-w-md relative overflow-hidden">
-      <div class="absolute -top-12 -right-12 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl"></div>
-
-      <div class="text-center mb-8">
-        <div class="w-14 h-14 bg-emerald-500/20 border border-emerald-500/40 rounded-2xl flex items-center justify-center text-emerald-400 font-extrabold text-2xl mx-auto mb-3">
+  <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px;">
+    <div class="glass-card" style="width: 100%; max-width: 440px; padding: 40px; position: relative;">
+      
+      <div style="text-align: center; margin-bottom: 32px;">
+        <div class="brand-icon" style="margin: 0 auto 16px auto; width: 56px; height: 56px; font-size: 30px; border-radius: 16px;">
           A
         </div>
-        <h1 class="text-2xl font-extrabold text-white">Project Amnion 2.0</h1>
-        <p class="text-sm text-slate-400 mt-1">Log in op je VPN beheeromgeving</p>
+        <h1 style="font-size: 26px; font-weight: 800; color: #ffffff;">Project Amnion 2.0</h1>
+        <p style="font-size: 14px; color: var(--text-muted); margin-top: 6px;">Log in op je VPN beheeromgeving</p>
       </div>
 
-      <form @submit.prevent="handleLogin" class="space-y-5">
-        <div v-if="error" class="p-3 bg-red-500/15 border border-red-500/30 rounded-lg text-red-400 text-sm">
+      <form @submit.prevent="handleLogin">
+        <div v-if="error" style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #fca5a5; padding: 12px; border-radius: 12px; font-size: 14px; margin-bottom: 20px;">
           {{ error }}
         </div>
 
-        <div>
-          <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Gebruikersnaam</label>
+        <div class="form-group">
+          <label class="form-label">Gebruikersnaam</label>
           <input type="text" v-model="username" required class="input-field" placeholder="admin" />
         </div>
 
-        <div>
-          <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Wachtwoord</label>
+        <div class="form-group" style="margin-bottom: 28px;">
+          <label class="form-label">Wachtwoord</label>
           <input type="password" v-model="password" required class="input-field" placeholder="••••••••" />
         </div>
 
-        <button type="submit" :disabled="submitting" class="btn-primary w-full justify-center py-3 text-base">
+        <button type="submit" :disabled="submitting" class="btn btn-primary" style="width: 100%; padding: 14px; font-size: 16px;">
           {{ submitting ? 'Inloggen...' : 'Inloggen op Dashboard' }}
         </button>
       </form>
+
     </div>
   </div>
 </template>
@@ -54,7 +54,7 @@ async function handleLogin() {
     await authStore.login(username.value, password.value);
     router.push({ name: 'overview' });
   } catch (err: any) {
-    error.value = err.response?.data?.error || 'Inloggen mislukt. Controleer gegevens.';
+    error.value = err.response?.data?.error || 'Inloggen mislukt. Controleer je gegevens.';
   } finally {
     submitting.value = false;
   }

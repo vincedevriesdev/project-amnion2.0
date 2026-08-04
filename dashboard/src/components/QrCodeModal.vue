@@ -1,28 +1,28 @@
 <template>
   <div class="modal-backdrop" v-if="isOpen" @click.self="close">
-    <div class="glass-card p-6 w-full max-w-md relative animate-fadeIn">
-      <div class="flex items-center justify-between mb-4">
-        <h3 class="text-lg font-heading font-bold text-white">Hiddify Configuraie - {{ username }}</h3>
-        <button @click="close" class="text-slate-400 hover:text-white">&times;</button>
+    <div class="modal-box">
+      <div class="flex-between" style="margin-bottom: 20px;">
+        <h3 style="font-size: 18px; font-weight: 800; color: #fff;">Hiddify Config - {{ username }}</h3>
+        <button @click="close" style="background: none; border: none; color: var(--text-muted); font-size: 24px; cursor: pointer;">&times;</button>
       </div>
 
-      <div class="bg-white p-4 rounded-xl flex items-center justify-center mb-4 border border-slate-200">
-        <div v-html="qrSvg" v-if="qrSvg" class="w-full flex justify-center"></div>
-        <div v-else class="text-slate-500 text-sm">QR Code laden...</div>
+      <div style="background: #ffffff; padding: 20px; border-radius: 16px; display: flex; justify-content: center; align-items: center; margin-bottom: 20px;">
+        <div v-html="qrSvg" v-if="qrSvg" style="width: 100%; max-width: 240px; display: flex; justify-content: center;"></div>
+        <div v-else style="color: #64748b; font-size: 14px;">QR Code laden...</div>
       </div>
 
-      <div class="mb-4">
-        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Hiddify Subscription URL</label>
-        <div class="flex gap-2">
-          <input type="text" readonly :value="subUrl" class="input-field text-xs font-mono" />
-          <button @click="copySubUrl" class="btn-primary text-xs shrink-0">
+      <div class="form-group">
+        <label class="form-label">Hiddify Subscription URL</label>
+        <div style="display: flex; gap: 8px;">
+          <input type="text" readonly :value="subUrl" class="input-field font-mono" style="font-size: 12px;" />
+          <button @click="copySubUrl" class="btn btn-primary btn-sm" style="white-space: nowrap;">
             {{ copied ? 'Gekopieerd!' : 'Kopiëren' }}
           </button>
         </div>
       </div>
 
-      <div class="text-xs text-slate-400 bg-slate-900/60 p-3 rounded-lg border border-white/5">
-        💡 <strong class="text-slate-300">Hoe te gebruiken:</strong> Open de <span class="text-emerald-400">Hiddify Next</span> app op je telefoon/PC en scanklik op <em>"Import from Clipboard"</em> of scan de QR-code.
+      <div style="font-size: 12px; color: var(--text-muted); background: rgba(30, 41, 59, 0.6); padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border-glass);">
+        💡 <strong style="color: #fff;">Hoe te gebruiken:</strong> Open de <span class="text-emerald">Hiddify Next</span> app op je telefoon/PC en kies <em>"Import from Clipboard"</em> of scan de QR-code.
       </div>
     </div>
   </div>
