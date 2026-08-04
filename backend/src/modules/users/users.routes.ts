@@ -1,6 +1,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { UsersService } from './users.service.js';
 import { AuthService } from '../auth/auth.service.js';
+import { SystemService } from '../system/system.service.js';
 
 export async function usersRoutes(fastify: FastifyInstance) {
   // Auth check middleware
@@ -24,10 +25,14 @@ export async function usersRoutes(fastify: FastifyInstance) {
 
   fastify.post('/', async (request: FastifyRequest, reply: FastifyReply) => {
     const { username, dataLimitBytes, expireAt, protocols } = request.body as any;
-    if (!username) return reply.status(400).send({ error: 'Gebruikersnaam is verplicht' });
+    if (!username || !username.trim()) {
+      return reply.status(400).send({ error: 'Gebruikersnaam is verplicht' });
+    }
 
     try {
-      const user = UsersService.createUser(username, dataLimitBytes, expireAt, protocols);
+      const user = UsersService.createUser(username.trim(), dataLimitBytes || 0, expireAt || null, protocols || ['hysteria2', 'tuic', 'vless_reality']);
+      // Automatically sync and reload sing-box VPN engine
+      await SystemService.syncAndReloadSingBox();
       return reply.status(201).send({ user });
     } catch (err: any) {
       return reply.status(400).send({ error: err.message });
@@ -38,6 +43,8 @@ export async function usersRoutes(fastify: FastifyInstance) {
     const { id } = request.params as any;
     try {
       const user = UsersService.updateUser(id, request.body as any);
+      // Automatically sync and reload sing-box VPN engine
+      await SystemService.syncAndReloadSingBox();
       return { user };
     } catch (err: any) {
       return reply.status(400).send({ error: err.message });
@@ -56,7 +63,13 @@ export async function usersRoutes(fastify: FastifyInstance) {
 
   fastify.delete('/:id', async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as any;
-    UsersService.deleteUser(id);
-    return { status: 'ok' };
+    try {
+      UsersService.deleteUser(id);
+      // Automatically sync and reload sing-box VPN engine
+      await SystemService.syncAndReloadSingBox();
+      return { status: 'ok' };
+    } catch (err: any) {
+      return reply.status(400).send({ error: err.message });
+    }
   });
 }

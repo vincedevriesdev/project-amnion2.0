@@ -12,6 +12,41 @@
       </button>
     </div>
 
+    <!-- Alert Toast -->
+    <div v-if="toastMessage" style="margin-bottom: 24px; padding: 16px; border-radius: 14px; font-size: 14px; font-weight: 500;" :style="toastSuccess ? 'background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); color: #34d399;' : 'background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5;'">
+      {{ toastMessage }}
+    </div>
+
+    <!-- User Statistics Summary Cards -->
+    <div class="grid-3" style="margin-bottom: 32px;">
+      <div class="glass-card">
+        <div class="flex-between" style="margin-bottom: 8px;">
+          <span class="form-label" style="margin-bottom: 0;">Totaal Gebruikers</span>
+          <span class="badge badge-emerald">Actief</span>
+        </div>
+        <div style="font-size: 28px; font-weight: 800; color: #fff;">{{ userStore.users.length }}</div>
+        <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Geregistreerde VPN accounts</div>
+      </div>
+
+      <div class="glass-card">
+        <div class="flex-between" style="margin-bottom: 8px;">
+          <span class="form-label" style="margin-bottom: 0;">Totaal Dataverbruik</span>
+          <span class="font-mono text-cyan" style="font-weight: 700;">Cumulatief</span>
+        </div>
+        <div style="font-size: 28px; font-weight: 800; color: #fff;">{{ formatBytes(totalUsedBytes) }}</div>
+        <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Verbruikt door alle VPN clients</div>
+      </div>
+
+      <div class="glass-card">
+        <div class="flex-between" style="margin-bottom: 8px;">
+          <span class="form-label" style="margin-bottom: 0;">Actieve Protocollen</span>
+          <span class="badge badge-purple">Multi-Engine</span>
+        </div>
+        <div style="font-size: 28px; font-weight: 800; color: #fff;">3 Protocollen</div>
+        <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Hysteria2, TUIC v5, VLESS REALITY</div>
+      </div>
+    </div>
+
     <!-- Users Data Table -->
     <div class="table-wrapper">
       <table class="data-table">
@@ -19,6 +54,7 @@
           <tr>
             <th>Gebruiker</th>
             <th>Status</th>
+            <th>Dataverbruik</th>
             <th>Actieve Protocollen</th>
             <th>Hiddify Subscriptie</th>
             <th style="text-align: right;">Acties</th>
@@ -37,6 +73,16 @@
               <span class="badge" :class="user.status === 'active' ? 'badge-emerald' : 'badge-red'">
                 {{ user.status }}
               </span>
+            </td>
+
+            <!-- Data Limit / Usage -->
+            <td>
+              <div class="font-mono" style="font-size: 13px; font-weight: 700; color: #fff;">
+                {{ formatBytes(user.used_bytes) }}
+              </div>
+              <div style="font-size: 11px; color: var(--text-muted);">
+                {{ user.data_limit_bytes > 0 ? `Limiet: ${formatBytes(user.data_limit_bytes)}` : 'Onbeperkt' }}
+              </div>
             </td>
 
             <!-- Enabled Protocols -->
@@ -59,6 +105,7 @@
             <!-- Actions -->
             <td style="text-align: right;">
               <div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px;">
+                <button @click="handleResetToken(user.id)" class="btn btn-secondary btn-sm" title="Reset Subscriptie Token">Reset Token</button>
                 <button @click="openEditModal(user)" class="btn btn-secondary btn-sm">Bewerken</button>
                 <button @click="handleDelete(user.id)" class="btn btn-danger btn-sm">Verwijderen</button>
               </div>
@@ -66,7 +113,7 @@
           </tr>
 
           <tr v-if="userStore.users.length === 0">
-            <td colspan="5" style="text-align: center; padding: 40px; color: var(--text-dim);">
+            <td colspan="6" style="text-align: center; padding: 40px; color: var(--text-dim);">
               Nog geen gebruikers aangemaakt. Klik op "Nieuwe Gebruiker" om te beginnen.
             </td>
           </tr>
@@ -85,6 +132,11 @@
           <div class="form-group">
             <label class="form-label">Gebruikersnaam</label>
             <input type="text" v-model="form.username" required :disabled="isEditing" class="input-field" placeholder="bijv. vince-phone" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Datalimiet in GB (0 = Onbeperkt)</label>
+            <input type="number" v-model.number="form.dataLimitGb" min="0" class="input-field" placeholder="0" />
           </div>
 
           <div class="form-group">
@@ -109,7 +161,9 @@
 
           <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 28px;">
             <button type="button" @click="closeModal" class="btn btn-secondary">Annuleren</button>
-            <button type="submit" class="btn btn-primary">{{ isEditing ? 'Opslaan' : 'Aanmaken & Genereer Config' }}</button>
+            <button type="submit" :disabled="saving" class="btn btn-primary">
+              {{ saving ? 'Bezig met opslaan...' : (isEditing ? 'Opslaan' : 'Aanmaken & Genereer Config') }}
+            </button>
           </div>
         </form>
       </div>
@@ -121,7 +175,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useUserStore, VpnUser } from '../stores/users';
 import QrCodeModal from '../components/QrCodeModal.vue';
 
@@ -129,15 +183,24 @@ const userStore = useUserStore();
 
 const showModal = ref(false);
 const isEditing = ref(false);
+const saving = ref(false);
 const selectedUserId = ref('');
 
 const showQrModal = ref(false);
 const selectedUsername = ref('');
 const selectedSubToken = ref('');
 
+const toastMessage = ref('');
+const toastSuccess = ref(true);
+
 const form = ref({
   username: '',
+  dataLimitGb: 0,
   protocols: ['hysteria2', 'tuic', 'vless_reality']
+});
+
+const totalUsedBytes = computed(() => {
+  return userStore.users.reduce((acc, u) => acc + (u.used_bytes || 0), 0);
 });
 
 onMounted(() => {
@@ -149,6 +212,7 @@ function openAddModal() {
   selectedUserId.value = '';
   form.value = {
     username: '',
+    dataLimitGb: 0,
     protocols: ['hysteria2', 'tuic', 'vless_reality']
   };
   showModal.value = true;
@@ -160,6 +224,7 @@ function openEditModal(user: VpnUser) {
   const enabledProtos = user.protocols.filter(p => p.is_enabled).map(p => p.protocol_type);
   form.value = {
     username: user.username,
+    dataLimitGb: user.data_limit_bytes ? Math.round(user.data_limit_bytes / (1024 * 1024 * 1024)) : 0,
     protocols: enabledProtos
   };
   showModal.value = true;
@@ -170,22 +235,63 @@ function closeModal() {
 }
 
 async function saveUser() {
-  if (isEditing.value) {
-    await userStore.updateUser(selectedUserId.value, {
-      protocols: form.value.protocols
-    });
-  } else {
-    await userStore.createUser({
-      username: form.value.username,
-      protocols: form.value.protocols
-    });
+  saving.value = true;
+  toastMessage.value = '';
+  try {
+    const dataLimitBytes = (form.value.dataLimitGb || 0) * 1024 * 1024 * 1024;
+    
+    if (isEditing.value) {
+      await userStore.updateUser(selectedUserId.value, {
+        dataLimitBytes,
+        protocols: form.value.protocols
+      });
+      toastSuccess.value = true;
+      toastMessage.value = 'Gebruiker en VPN configuratie succesvol bijgewerkt!';
+      closeModal();
+    } else {
+      const newUser = await userStore.createUser({
+        username: form.value.username.trim(),
+        dataLimitBytes,
+        protocols: form.value.protocols
+      });
+      toastSuccess.value = true;
+      toastMessage.value = `Gebruiker "${newUser.username}" succesvol aangemaakt!`;
+      closeModal();
+      
+      // Auto-open QR modal for newly created user
+      openQrModal(newUser);
+    }
+  } catch (err: any) {
+    toastSuccess.value = false;
+    toastMessage.value = err.response?.data?.error || err.message || 'Fout bij opslaan gebruiker.';
+  } finally {
+    saving.value = false;
   }
-  closeModal();
+}
+
+async function handleResetToken(id: string) {
+  if (confirm('Weet je zeker dat je het subscriptie token wilt resetten? De oude QR-code van de gebruiker zal vervallen.')) {
+    try {
+      await userStore.resetToken(id);
+      toastSuccess.value = true;
+      toastMessage.value = 'Subscriptie token succesvol vernieuwd!';
+    } catch (err: any) {
+      toastSuccess.value = false;
+      toastMessage.value = err.response?.data?.error || 'Token resetten mislukt.';
+    }
+  }
 }
 
 async function handleDelete(id: string) {
   if (confirm('Weet je zeker dat je deze gebruiker wilt verwijderen?')) {
-    await userStore.deleteUser(id);
+    try {
+      await userStore.deleteUser(id);
+      toastSuccess.value = true;
+      toastMessage.value = 'Gebruiker succesvol verwijderd.';
+    } catch (err: any) {
+      toastSuccess.value = false;
+      toastMessage.value = err.response?.data?.error || 'Verwijderen mislukt.';
+    }
   }
 }
 
@@ -205,5 +311,13 @@ function getProtocolLabel(type: string) {
   if (type === 'hysteria2') return 'HY2';
   if (type === 'tuic') return 'TUIC';
   return 'VLESS';
+}
+
+function formatBytes(bytes: number) {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 </script>
