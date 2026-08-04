@@ -106,7 +106,13 @@ if command -v sing-box &> /dev/null; then
 fi
 
 # 5. Reload Services & Verify Health
-echo -e "${YELLOW}[5/5] Services herstarten en API gezondheid valideren...${NC}"
+echo -e "${YELLOW}[5/5] Firewall regels instellen & Services herstarten...${NC}"
+ufw allow 80/tcp || true
+ufw allow 443/tcp || true
+ufw allow 8443/udp || true
+ufw allow 8444/udp || true
+ufw allow 3000/tcp || true
+
 systemctl daemon-reload
 systemctl restart sing-box || true
 systemctl restart amnion-backend
