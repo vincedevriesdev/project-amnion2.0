@@ -1,6 +1,6 @@
 # Project Amnion 2.0
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Platform: Ubuntu](https://img.shields.io/badge/Platform-Ubuntu%2020.04%20%7C%2022.04%20%7C%2024.04-orange.svg)](https://ubuntu.com)
 [![Engine: sing-box](https://img.shields.io/badge/Engine-sing--box-blue.svg)](https://sing-box.sagernet.org/)
 [![Client: Hiddify Next](https://img.shields.io/badge/Client-Hiddify%20Next-green.svg)](https://hiddify.com/)
@@ -75,4 +75,4 @@ project-amnion/
 
 ## 📄 Licentie
 
-Gepubliceerd onder de **MIT License**. Zie [LICENSE](LICENSE) voor meer informatie.
+Gepubliceerd onder de **GNU General Public License v3.0 (GPLv3)**. Zie [LICENSE](LICENSE) voor meer informatie.
