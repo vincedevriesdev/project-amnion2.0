@@ -9,7 +9,6 @@ export const useAuthStore = defineStore('auth', () => {
   const checked = ref<boolean>(false);
 
   async function checkAuth() {
-    if (checked.value) return;
     loading.value = true;
     try {
       const res = await api.get('/auth/me');
@@ -44,9 +43,6 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function changePassword(oldPassword: string, newPassword: string) {
     const res = await api.post('/auth/change-password', { oldPassword, newPassword });
-    admin.value = null;
-    isAuthenticated.value = false;
-    checked.value = false;
     return res.data;
   }
 

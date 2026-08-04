@@ -13,7 +13,7 @@
     </div>
 
     <!-- Analytics Top Cards -->
-    <div class="grid-3" style="margin-bottom: 32px;" v-if="systemStore.stats">
+    <div class="grid-3" style="margin-bottom: 32px;">
       <!-- Most Used Protocol Card -->
       <div class="glass-card">
         <div class="flex-between" style="margin-bottom: 12px;">

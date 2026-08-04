@@ -4,12 +4,15 @@ import { generateSecureToken, generateUUID } from '../../core/utils/crypto.js';
 
 export class AuthService {
   static async login(username: string, password: string, ipAddress: string, userAgent: string) {
-    const admin = db.prepare('SELECT * FROM admins WHERE username = ?').get(username) as any;
+    const cleanUsername = username.trim();
+    const cleanPassword = password.trim();
+
+    const admin = db.prepare('SELECT * FROM admins WHERE username = ?').get(cleanUsername) as any;
     if (!admin) {
       throw new Error('Ongeldige gebruikersnaam of wachtwoord');
     }
 
-    const isValid = await verifyPassword(admin.password_hash, password);
+    const isValid = await verifyPassword(admin.password_hash, cleanPassword);
     if (!isValid) {
       throw new Error('Ongeldige gebruikersnaam of wachtwoord');
     }
@@ -28,7 +31,7 @@ export class AuthService {
     db.prepare(`
       INSERT INTO audit_logs (id, admin_id, action, details_json, ip_address)
       VALUES (?, ?, ?, ?, ?)
-    `).run(generateUUID(), admin.id, 'LOGIN_SUCCESS', JSON.stringify({ username }), ipAddress);
+    `).run(generateUUID(), admin.id, 'LOGIN_SUCCESS', JSON.stringify({ username: cleanUsername }), ipAddress);
 
     return { rawToken, expiresAt, admin: { id: admin.id, username: admin.username, role: admin.role } };
   }
@@ -51,20 +54,29 @@ export class AuthService {
   }
 
   static async changePassword(adminId: string, oldPassword: string, newPassword: string) {
+    const cleanOld = oldPassword.trim();
+    const cleanNew = newPassword.trim();
+
     const admin = db.prepare('SELECT * FROM admins WHERE id = ?').get(adminId) as any;
-    if (!admin) throw new Error('Admin niet gevonden');
+    if (!admin) throw new Error('Beheerder niet gevonden');
 
-    const isValid = await verifyPassword(admin.password_hash, oldPassword);
-    if (!isValid) throw new Error('Huidig wachtwoord is onjuist');
+    const isValid = await verifyPassword(admin.password_hash, cleanOld);
+    if (!isValid) {
+      throw new Error('Huidig wachtwoord is onjuist');
+    }
 
-    if (newPassword.length < 8) {
+    if (cleanNew.length < 8) {
       throw new Error('Nieuw wachtwoord moet minimaal 8 tekens lang zijn');
     }
 
-    const newHash = await hashPassword(newPassword);
-    db.prepare('UPDATE admins SET password_hash = ? WHERE id = ?').run(newHash, adminId);
+    const newHash = await hashPassword(cleanNew);
+    const updateResult = db.prepare('UPDATE admins SET password_hash = ? WHERE id = ?').run(newHash, adminId);
+    
+    if (updateResult.changes === 0) {
+      throw new Error('Opslaan in database mislukt');
+    }
 
-    // Revoke other sessions for security
+    // Revoke all existing sessions so old sessions expire immediately
     db.prepare('DELETE FROM sessions WHERE admin_id = ?').run(adminId);
   }
 

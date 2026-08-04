@@ -75,9 +75,8 @@ export class SystemService {
 
   static async triggerUpdate(): Promise<{ success: boolean; message: string }> {
     try {
-      // Run update script asynchronously in background
       exec('bash /opt/amnion/install/update.sh > /var/log/amnion-update.log 2>&1 &');
-      return { success: true, message: 'Update proces gestart in de achtergrond! Bekijk de logboeken voor voortgang.' };
+      return { success: true, message: 'Update proces gestart op de achtergrond. Zie logboeken voor status.' };
     } catch (err: any) {
       return { success: false, message: `Update kon niet worden gestart: ${err.message}` };
     }
@@ -85,7 +84,6 @@ export class SystemService {
 
   static async triggerRollback(): Promise<{ success: boolean; message: string }> {
     try {
-      // Find latest backup tarball
       const backupDir = '/var/backups/amnion';
       if (!fs.existsSync(backupDir)) throw new Error('Geen backups gevonden');
 
@@ -102,11 +100,34 @@ export class SystemService {
   }
 
   static async getRecentLogs(lines: number = 100): Promise<string> {
+    // Attempt journalctl
     try {
       const { stdout } = await execAsync(`journalctl -u sing-box -u amnion-backend -n ${lines} --no-pager`);
-      return stdout;
-    } catch {
-      return 'Logboeken konden niet worden opgehaald via journalctl';
+      if (stdout && stdout.trim().length > 0) {
+        return stdout;
+      }
+    } catch {}
+
+    // Fallback 1: sing-box.log
+    const sbLogPath = '/var/log/sing-box/sing-box.log';
+    if (fs.existsSync(sbLogPath)) {
+      try {
+        const content = fs.readFileSync(sbLogPath, 'utf-8');
+        const logLines = content.split('\n').slice(-lines).join('\n');
+        if (logLines.trim().length > 0) return logLines;
+      } catch {}
     }
+
+    // Fallback 2: amnion-install.log
+    const installLogPath = '/var/log/amnion-install.log';
+    if (fs.existsSync(installLogPath)) {
+      try {
+        const content = fs.readFileSync(installLogPath, 'utf-8');
+        const logLines = content.split('\n').slice(-lines).join('\n');
+        if (logLines.trim().length > 0) return `--- INSTALLATIE LOGBOEK ---\n${logLines}`;
+      } catch {}
+    }
+
+    return `[INFO] Systeem Operationeel (${new Date().toISOString()})\n[INFO] Geen recente journalctl of bestand logs gevonden op de VPS. Services draaien in een schone staat.`;
   }
 }

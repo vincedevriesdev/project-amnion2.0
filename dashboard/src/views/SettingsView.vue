@@ -21,7 +21,7 @@
       <div class="glass-card">
         <h3 style="font-size: 18px; font-weight: 800; color: #fff; margin-bottom: 8px;">🔑 Beheerders Wachtwoord Wijzigen</h3>
         <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 24px;">
-          Wijzig het admin wachtwoord. Na het wijzigen word je om veiligheidsredenen automatisch uitgelogd.
+          Wijzig het admin wachtwoord. Na het succesvol wijzigen word je automatisch uitgelogd.
         </p>
 
         <form @submit.prevent="handleChangePassword">
@@ -132,15 +132,19 @@ async function handleChangePassword() {
   submitting.value = true;
   toastMessage.value = '';
   try {
-    const res = await authStore.changePassword(pwdForm.value.oldPassword, pwdForm.value.newPassword);
+    const res = await authStore.changePassword(pwdForm.value.oldPassword.trim(), pwdForm.value.newPassword.trim());
     toastSuccess.value = true;
-    toastMessage.value = res.message || 'Wachtwoord succesvol gewijzigd!';
-    setTimeout(() => {
+    toastMessage.value = res.message || 'Wachtwoord succesvol gewijzigd! Je wordt nu uitgelogd...';
+    
+    pwdForm.value = { oldPassword: '', newPassword: '', confirmPassword: '' };
+
+    setTimeout(async () => {
+      await authStore.logout();
       router.push({ name: 'login' });
-    }, 1500);
+    }, 2000);
   } catch (err: any) {
     toastSuccess.value = false;
-    toastMessage.value = err.response?.data?.error || 'Wachtwoord wijzigen mislukt.';
+    toastMessage.value = err.response?.data?.error || 'Wachtwoord wijzigen mislukt. Controleer je huidige wachtwoord.';
   } finally {
     submitting.value = false;
   }
