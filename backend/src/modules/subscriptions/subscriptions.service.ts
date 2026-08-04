@@ -46,8 +46,8 @@ export class SubscriptionsService {
         const hy2 = `hysteria2://${user.uuid}@${host}:8443?insecure=1&sni=${sniDomain}#🚀 HY2 (Mobiel 4G/5G) - ${user.username}`;
         uris.push(hy2);
       } else if (p.protocol_type === 'tuic') {
-        // Clean TUIC v5 spec: no disable_sni, no trailing slashes
-        const tuic = `tuic://${user.uuid}:${user.uuid}@${host}:8444?congestion_control=bbr&udp_relay_mode=native&alpn=h3&allow_insecure=1&sni=${sniDomain}#⚡ TUIC v5 (Lage Latency) - ${user.username}`;
+        // Clean TUIC v5 spec: remove alpn=h3 from query string for Hiddify client compatibility
+        const tuic = `tuic://${user.uuid}:${user.uuid}@${host}:8444?congestion_control=bbr&udp_relay_mode=native&allow_insecure=1&sni=${sniDomain}#⚡ TUIC v5 (Lage Latency) - ${user.username}`;
         uris.push(tuic);
       } else if (p.protocol_type === 'vless_reality') {
         const vless = `vless://${user.uuid}@${host}:443?type=tcp&security=reality&pbk=${pubKeyStr}&fp=chrome&sni=dl.google.com&sid=${shortIdStr}&flow=xtls-rprx-vision#🛡️ VLESS REALITY (Camouflage) - ${user.username}`;
