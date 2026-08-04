@@ -11,6 +11,10 @@ import { subscriptionsRoutes } from './modules/subscriptions/subscriptions.route
 import { statsRoutes } from './modules/stats/stats.routes.js';
 import { systemRoutes } from './modules/system/system.routes.js';
 
+import fastifyStatic from '@fastify/static';
+import path from 'path';
+import fs from 'fs';
+
 const fastify = Fastify({
   logger: {
     level: 'info'
@@ -49,6 +53,18 @@ async function startServer() {
     fastify.get('/api/v1/health', async () => {
       return { status: 'ok', service: 'Project Amnion Backend', timestamp: new Date().toISOString() };
     });
+
+    // 4. Serve Dashboard Static SPA
+    const dashboardDist = path.join(process.cwd(), '../dashboard/dist');
+    if (fs.existsSync(dashboardDist)) {
+      await fastify.register(fastifyStatic, {
+        root: dashboardDist,
+        prefix: '/'
+      });
+      fastify.setNotFoundHandler((_request, reply) => {
+        reply.sendFile('index.html');
+      });
+    }
 
     // 4. Start Server Listening
     await fastify.listen({ port: CONFIG.PORT, host: CONFIG.HOST });

@@ -28,6 +28,17 @@ Voer het volgende commando uit als `root` op een schone Ubuntu VPS:
 bash <(curl -fsSL https://raw.githubusercontent.com/vincedevriesdev/project-amnion2.0/main/install/install.sh)
 ```
 
+### 🔑 Standaard Inloggegevens (Eerste keer inloggen)
+
+Na de installatie is het Web Dashboard bereikbaar via `http://<JOUW-VPS-IP>:3000` (of via jouw gekoppelde domeinnaam).
+
+- **Gebruikersnaam**: `admin`
+- **Wachtwoord**: `AmnionAdmin2026!`
+
+> [!CAUTION]
+> **BELANGRIJK VOOR JE BEVEILIGING**:
+> Pas het standaard wachtwoord **direct aan** na de eerste keer inloggen! Dit kan vanuit het instellingen/gebruikers menu in het dashboard.
+
 ---
 
 ## 📁 Repository Structuur
