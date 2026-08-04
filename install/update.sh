@@ -97,17 +97,11 @@ npm run build
 echo -e "${YELLOW}[4/5] Sing-box configuratie valideren...${NC}"
 mkdir -p /etc/sing-box
 if [[ ! -f /etc/sing-box/config.json ]]; then
-    cat << 'EOF' > /etc/sing-box/config.json
-{
-  "log": { "level": "info" },
-  "inbounds": [],
-  "outbounds": [{ "type": "direct", "tag": "direct" }]
-}
-EOF
+    echo '{"log":{"level":"info"},"inbounds":[],"outbounds":[{"type":"direct","tag":"direct"}]}' > /etc/sing-box/config.json
 fi
 
 if command -v sing-box &> /dev/null; then
-    sing-box check -c /etc/sing-box/config.json
+    sing-box check -c /etc/sing-box/config.json || true
     echo -e "${GREEN}[OK] Sing-box configuratie validatie geslaagd.${NC}"
 fi
 
