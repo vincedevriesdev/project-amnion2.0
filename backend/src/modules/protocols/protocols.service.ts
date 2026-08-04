@@ -1,4 +1,4 @@
-import fs from 'fs';
+import fs from 'path';
 import path from 'path';
 import { execSync } from 'child_process';
 import { db } from '../../core/database/db.js';
@@ -99,7 +99,6 @@ export class ProtocolsService {
         listen_port: 8444,
         users: tuicUsers,
         congestion_control: 'bbr',
-        zero_rtt_handshake: true,
         tls: {
           enabled: true,
           server_name: serverDomain,
