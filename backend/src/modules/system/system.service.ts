@@ -25,12 +25,15 @@ export class SystemService {
     }
   }
 
+  static getRealityDetails() {
+    this.ensureRealityKeys();
+    const pubKey = (db.prepare("SELECT value FROM system_config WHERE key = 'reality_public_key'").get() as any)?.value;
+    const shortId = (db.prepare("SELECT value FROM system_config WHERE key = 'reality_short_id'").get() as any)?.value;
+    return { publicKey: pubKey, shortId };
+  }
+
   /**
-   * Performs atomic write of sing-box config:
-   * 1. Write to /etc/sing-box/config.json.tmp
-   * 2. Run sing-box check -c config.json.tmp
-   * 3. Atomic rename to config.json
-   * 4. Trigger systemctl reload sing-box
+   * Performs atomic write of sing-box config
    */
   static async syncAndReloadSingBox(): Promise<{ success: boolean; message: string }> {
     this.ensureRealityKeys();
@@ -44,14 +47,11 @@ export class SystemService {
         fs.mkdirSync(dir, { recursive: true });
       }
 
-      // Step 1: Write tmp file
       fs.writeFileSync(tmpPath, JSON.stringify(newConfig, null, 2), 'utf-8');
 
-      // Step 2: Validate via sing-box check (if sing-box is installed)
       try {
         await execAsync(`${CONFIG.SING_BOX_BINARY} check -c ${tmpPath}`);
       } catch (checkErr: any) {
-        // Validation failed! Delete tmp file and abort
         if (fs.existsSync(tmpPath)) fs.unlinkSync(tmpPath);
         return {
           success: false,
@@ -59,20 +59,45 @@ export class SystemService {
         };
       }
 
-      // Step 3: Atomic rename
       fs.renameSync(tmpPath, configPath);
 
-      // Step 4: Graceful systemd reload
       try {
         await execAsync('systemctl reload sing-box');
-      } catch (reloadErr: any) {
-        // Fallback: try restarting if reload fails
+      } catch {
         await execAsync('systemctl restart sing-box');
       }
 
       return { success: true, message: 'Sing-box configuratie succesvol gesynchroniseerd en herladen' };
     } catch (err: any) {
       return { success: false, message: `System error: ${err.message}` };
+    }
+  }
+
+  static async triggerUpdate(): Promise<{ success: boolean; message: string }> {
+    try {
+      // Run update script asynchronously in background
+      exec('bash /opt/amnion/install/update.sh > /var/log/amnion-update.log 2>&1 &');
+      return { success: true, message: 'Update proces gestart in de achtergrond! Bekijk de logboeken voor voortgang.' };
+    } catch (err: any) {
+      return { success: false, message: `Update kon niet worden gestart: ${err.message}` };
+    }
+  }
+
+  static async triggerRollback(): Promise<{ success: boolean; message: string }> {
+    try {
+      // Find latest backup tarball
+      const backupDir = '/var/backups/amnion';
+      if (!fs.existsSync(backupDir)) throw new Error('Geen backups gevonden');
+
+      const files = fs.readdirSync(backupDir).filter(f => f.endsWith('.tar.gz')).sort().reverse();
+      if (files.length === 0) throw new Error('Geen backups gevonden om te herstellen');
+
+      const latestTar = path.join(backupDir, files[0]);
+      exec(`bash /opt/amnion/install/restore.sh "${latestTar}" > /var/log/amnion-rollback.log 2>&1 &`);
+
+      return { success: true, message: `Rollback gestart met backup file: ${files[0]}` };
+    } catch (err: any) {
+      return { success: false, message: err.message };
     }
   }
 

@@ -46,6 +46,28 @@ export async function authRoutes(fastify: FastifyInstance) {
     return reply.send({ status: 'ok' });
   });
 
+  // Change password route
+  fastify.post('/change-password', async (request: FastifyRequest, reply: FastifyReply) => {
+    const token = request.cookies.amnion_session;
+    if (!token) return reply.status(401).send({ error: 'Niet ingelogd' });
+
+    const session = AuthService.validateSession(token);
+    if (!session) return reply.status(401).send({ error: 'Sessie verlopen' });
+
+    const { oldPassword, newPassword } = request.body as any;
+    if (!oldPassword || !newPassword) {
+      return reply.status(400).send({ error: 'Oud en nieuw wachtwoord zijn verplicht' });
+    }
+
+    try {
+      await AuthService.changePassword(session.admin_id, oldPassword, newPassword);
+      reply.clearCookie('amnion_session', { path: '/' });
+      return reply.send({ status: 'ok', message: 'Wachtwoord succesvol gewijzigd. Log opnieuw in.' });
+    } catch (err: any) {
+      return reply.status(400).send({ error: err.message });
+    }
+  });
+
   // Session check route
   fastify.get('/me', async (request: FastifyRequest, reply: FastifyReply) => {
     const token = request.cookies.amnion_session;

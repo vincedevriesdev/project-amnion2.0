@@ -50,6 +50,24 @@ export class AuthService {
     db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(tokenHash);
   }
 
+  static async changePassword(adminId: string, oldPassword: string, newPassword: string) {
+    const admin = db.prepare('SELECT * FROM admins WHERE id = ?').get(adminId) as any;
+    if (!admin) throw new Error('Admin niet gevonden');
+
+    const isValid = await verifyPassword(admin.password_hash, oldPassword);
+    if (!isValid) throw new Error('Huidig wachtwoord is onjuist');
+
+    if (newPassword.length < 8) {
+      throw new Error('Nieuw wachtwoord moet minimaal 8 tekens lang zijn');
+    }
+
+    const newHash = await hashPassword(newPassword);
+    db.prepare('UPDATE admins SET password_hash = ? WHERE id = ?').run(newHash, adminId);
+
+    // Revoke other sessions for security
+    db.prepare('DELETE FROM sessions WHERE admin_id = ?').run(adminId);
+  }
+
   static async createInitialAdminIfNone(password: string = 'AmnionAdmin2026!') {
     const count = (db.prepare('SELECT COUNT(*) as count FROM admins').get() as any).count;
     if (count === 0) {

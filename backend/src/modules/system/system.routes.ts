@@ -19,6 +19,23 @@ export async function systemRoutes(fastify: FastifyInstance) {
     return { status: 'ok', message: result.message };
   });
 
+  fastify.post('/update', async (request: FastifyRequest, reply: FastifyReply) => {
+    const result = await SystemService.triggerUpdate();
+    return { status: 'ok', message: result.message };
+  });
+
+  fastify.post('/rollback', async (request: FastifyRequest, reply: FastifyReply) => {
+    const result = await SystemService.triggerRollback();
+    if (!result.success) {
+      return reply.status(500).send({ error: result.message });
+    }
+    return { status: 'ok', message: result.message };
+  });
+
+  fastify.get('/reality-info', async () => {
+    return SystemService.getRealityDetails();
+  });
+
   fastify.get('/logs', async (request: FastifyRequest) => {
     const { lines } = request.query as any;
     const lineCount = lines ? parseInt(lines, 10) : 100;

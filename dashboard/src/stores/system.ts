@@ -5,6 +5,7 @@ import { api } from '../api/client';
 export const useSystemStore = defineStore('system', () => {
   const stats = ref<any>(null);
   const logs = ref<string>('');
+  const realityDetails = ref<{ publicKey: string; shortId: string } | null>(null);
   const loading = ref<boolean>(false);
 
   async function fetchStats() {
@@ -26,10 +27,29 @@ export const useSystemStore = defineStore('system', () => {
     }
   }
 
+  async function fetchRealityInfo() {
+    try {
+      const res = await api.get('/system/reality-info');
+      realityDetails.value = res.data;
+    } catch (err) {
+      console.error('Failed to fetch reality info:', err);
+    }
+  }
+
   async function reloadSingBox() {
     const res = await api.post('/system/reload-singbox');
     return res.data;
   }
 
-  return { stats, logs, loading, fetchStats, fetchLogs, reloadSingBox };
+  async function triggerUpdate() {
+    const res = await api.post('/system/update');
+    return res.data;
+  }
+
+  async function triggerRollback() {
+    const res = await api.post('/system/rollback');
+    return res.data;
+  }
+
+  return { stats, logs, realityDetails, loading, fetchStats, fetchLogs, fetchRealityInfo, reloadSingBox, triggerUpdate, triggerRollback };
 });

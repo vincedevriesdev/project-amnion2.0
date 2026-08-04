@@ -6,8 +6,10 @@ export const useAuthStore = defineStore('auth', () => {
   const admin = ref<{ id: string; username: string; role: string } | null>(null);
   const isAuthenticated = ref<boolean>(false);
   const loading = ref<boolean>(true);
+  const checked = ref<boolean>(false);
 
   async function checkAuth() {
+    if (checked.value) return;
     loading.value = true;
     try {
       const res = await api.get('/auth/me');
@@ -18,6 +20,7 @@ export const useAuthStore = defineStore('auth', () => {
       isAuthenticated.value = false;
     } finally {
       loading.value = false;
+      checked.value = true;
     }
   }
 
@@ -25,6 +28,7 @@ export const useAuthStore = defineStore('auth', () => {
     const res = await api.post('/auth/login', { username, password });
     admin.value = res.data.admin;
     isAuthenticated.value = true;
+    checked.value = true;
     return res.data;
   }
 
@@ -34,8 +38,17 @@ export const useAuthStore = defineStore('auth', () => {
     } finally {
       admin.value = null;
       isAuthenticated.value = false;
+      checked.value = false;
     }
   }
 
-  return { admin, isAuthenticated, loading, checkAuth, login, logout };
+  async function changePassword(oldPassword: string, newPassword: string) {
+    const res = await api.post('/auth/change-password', { oldPassword, newPassword });
+    admin.value = null;
+    isAuthenticated.value = false;
+    checked.value = false;
+    return res.data;
+  }
+
+  return { admin, isAuthenticated, loading, checked, checkAuth, login, logout, changePassword };
 });
