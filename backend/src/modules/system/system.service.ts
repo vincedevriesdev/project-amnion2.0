@@ -142,6 +142,14 @@ export class SystemService {
   }
 
   static async triggerUpdate(): Promise<{ success: boolean; message: string }> {
+    // Reset stale active lock if older than 5 minutes
+    if (currentUpdateProgress.active && currentUpdateProgress.startTime) {
+      const elapsedMs = Date.now() - new Date(currentUpdateProgress.startTime).getTime();
+      if (elapsedMs > 5 * 60 * 1000) {
+        currentUpdateProgress.active = false;
+      }
+    }
+
     if (currentUpdateProgress.active) {
       return { success: false, message: 'Er is al een update actief op het systeem!' };
     }
