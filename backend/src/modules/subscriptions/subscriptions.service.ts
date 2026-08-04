@@ -40,14 +40,14 @@ export class SubscriptionsService {
     const pubKeyStr = realityPubKey ? realityPubKey.value : 'PUBLIC_KEY_PLACEHOLDER';
     const shortIdStr = realityShortId ? realityShortId.value : 'a1b2c3d4';
 
-    // Clear, beautifully structured proxy labels for Hiddify Next
+    // Build standard, clean proxy URIs according to Hiddify / Clash Meta specs
     for (const p of protocols) {
       if (p.protocol_type === 'hysteria2') {
         const hy2 = `hysteria2://${user.uuid}@${host}:8443?insecure=1&sni=${sniDomain}#🚀 HY2 (Mobiel 4G/5G) - ${user.username}`;
         uris.push(hy2);
       } else if (p.protocol_type === 'tuic') {
-        // Fix TUIC URI: remove trailing slash, include allow_insecure=1 and disable_sni=0
-        const tuic = `tuic://${user.uuid}:${user.uuid}@${host}:8444?congestion_control=bbr&udp_relay_mode=native&alpn=h3&allow_insecure=1&disable_sni=0&sni=${sniDomain}#⚡ TUIC v5 (Lage Latency) - ${user.username}`;
+        // Clean TUIC v5 spec: no disable_sni, no trailing slashes
+        const tuic = `tuic://${user.uuid}:${user.uuid}@${host}:8444?congestion_control=bbr&udp_relay_mode=native&alpn=h3&allow_insecure=1&sni=${sniDomain}#⚡ TUIC v5 (Lage Latency) - ${user.username}`;
         uris.push(tuic);
       } else if (p.protocol_type === 'vless_reality') {
         const vless = `vless://${user.uuid}@${host}:443?type=tcp&security=reality&pbk=${pubKeyStr}&fp=chrome&sni=dl.google.com&sid=${shortIdStr}&flow=xtls-rprx-vision#🛡️ VLESS REALITY (Camouflage) - ${user.username}`;
