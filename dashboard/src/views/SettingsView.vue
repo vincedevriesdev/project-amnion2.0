@@ -7,7 +7,7 @@
       </div>
 
       <span class="badge badge-purple" style="font-size: 13px; padding: 8px 16px;">
-        Project Amnion v2.0.51
+        Project Amnion {{ systemStore.stats.version || 'v2.0.53' }}
       </span>
     </div>
 

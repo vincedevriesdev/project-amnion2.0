@@ -2,6 +2,7 @@ import os from 'os';
 import fs from 'fs';
 import { execSync } from 'child_process';
 import { db } from '../../core/database/db.js';
+import { SystemService } from '../system/system.service.js';
 
 let lastRxBytes = 0;
 let lastTxBytes = 0;
@@ -169,7 +170,7 @@ export class StatsService {
     }
 
     return {
-      version: 'v2.0.51',
+      version: SystemService.getLocalVersion(),
       serverStatus: 'online',
       services: {
         singBox: singBoxActive ? 'active' : 'inactive',

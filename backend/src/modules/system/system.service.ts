@@ -1,4 +1,4 @@
-import { exec } from 'child_process';
+import { exec, execSync } from 'child_process';
 import util from 'util';
 import fs from 'fs';
 import path from 'path';
@@ -30,6 +30,44 @@ let currentUpdateProgress: UpdateProgress = {
 };
 
 export class SystemService {
+  /**
+   * Dynamically calculates local version string based on git commit count
+   */
+  static getLocalVersion(): string {
+    try {
+      const stdout = execSync('git rev-list --count HEAD', { encoding: 'utf-8' }).toString().trim();
+      if (stdout && !isNaN(Number(stdout))) {
+        return `v2.0.${stdout}`;
+      }
+    } catch {}
+    return 'v2.0.53';
+  }
+
+  /**
+   * Dynamically fetches remote commit count from GitHub REST API
+   */
+  static async getRemoteCommitCount(): Promise<number | null> {
+    try {
+      const res = await fetch('https://api.github.com/repos/vincedevriesdev/project-amnion2.0/commits?per_page=1', {
+        headers: { 'User-Agent': 'Amnion-Update-Checker' }
+      });
+      if (res.ok) {
+        const linkHeader = res.headers.get('link');
+        if (linkHeader) {
+          const match = linkHeader.match(/&page=(\d+)>; rel="last"/);
+          if (match && match[1]) {
+            return parseInt(match[1], 10);
+          }
+        }
+        const commits = await res.json() as any[];
+        if (Array.isArray(commits) && commits.length > 0) {
+          return 1;
+        }
+      }
+    } catch {}
+    return null;
+  }
+
   /**
    * Initializes REALITY keys in system_config DB if missing
    */
@@ -128,7 +166,6 @@ export class SystemService {
         }
 
         if (logContent.includes('[5/5]')) {
-          // If step 5 has reached the restart phase, mark progress as 100% finished
           return {
             active: false,
             step: 5,
@@ -162,38 +199,34 @@ export class SystemService {
   }
 
   static async checkForUpdates(): Promise<{ updateAvailable: boolean; currentVersion: string; latestVersion: string; message: string }> {
-    const currentVersion = 'v2.0.51';
-    try {
-      const res = await fetch('https://api.github.com/repos/vincedevriesdev/project-amnion2.0/commits/main', {
-        headers: { 'User-Agent': 'Amnion-Update-Checker' }
-      });
-      if (res.ok) {
-        const data = await res.json() as any;
-        const remoteSha = data.sha ? data.sha.slice(0, 7) : 'latest';
-        const commitMsg = data.commit?.message?.split('\n')[0] || '';
+    const localVer = this.getLocalVersion();
+    const localCount = parseInt(localVer.replace('v2.0.', ''), 10) || 53;
+    const remoteCount = await this.getRemoteCommitCount();
 
-        let localSha = '';
-        try {
-          const { stdout } = await execAsync('git rev-parse --short HEAD');
-          localSha = stdout.trim();
-        } catch {}
-
-        if (localSha && remoteSha && localSha !== remoteSha) {
-          return {
-            updateAvailable: true,
-            currentVersion,
-            latestVersion: `Commit ${remoteSha}`,
-            message: `🚀 Nieuwe update beschikbaar op GitHub (${remoteSha}: "${commitMsg}")!`
-          };
-        }
+    if (remoteCount !== null) {
+      const latestVer = `v2.0.${remoteCount}`;
+      if (remoteCount > localCount) {
+        return {
+          updateAvailable: true,
+          currentVersion: localVer,
+          latestVersion: latestVer,
+          message: `🚀 Update beschikbaar! Jij hebt versie ${localVer} en de nieuwste versie op GitHub is ${latestVer}.`
+        };
+      } else {
+        return {
+          updateAvailable: false,
+          currentVersion: localVer,
+          latestVersion: latestVer,
+          message: `✅ Je draait op de nieuwste versie! Jij hebt versie ${localVer} en de nieuwste versie is ${latestVer}.`
+        };
       }
-    } catch {}
+    }
 
     return {
       updateAvailable: false,
-      currentVersion,
-      latestVersion: currentVersion,
-      message: `✅ Je draait al op de nieuwste versie van Amnion (${currentVersion}).`
+      currentVersion: localVer,
+      latestVersion: localVer,
+      message: `✅ Jij hebt versie ${localVer} en het systeem is up-to-date.`
     };
   }
 
@@ -205,7 +238,6 @@ export class SystemService {
       }
     }
 
-    // Clean log file before triggering new update
     try {
       const logPath = '/var/log/amnion-update.log';
       if (fs.existsSync(logPath)) fs.unlinkSync(logPath);
