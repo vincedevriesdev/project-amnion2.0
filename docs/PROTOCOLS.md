@@ -8,7 +8,7 @@ Project Amnion 2.0 gebruikt **sing-box** om drie moderne protocollen te onderste
 
 ### 🚀 1. Hysteria 2 (HY2)
 
-- **Transport**: QUIC / UDP
+- **Transport**: QUIC / UDP (Poort 8443)
 - **Congestion Control**: Agressieve BBR-variant
 - **Beste Use Case**: Slechte mobiele verbindingen (4G/5G), drukke Wi-Fi-netwerken, netwerken met pakketverlies (packet loss).
 - **Werking**:
@@ -23,7 +23,7 @@ Project Amnion 2.0 gebruikt **sing-box** om drie moderne protocollen te onderste
 
 ### ⚡ 2. TUIC (v5)
 
-- **Transport**: QUIC / UDP
+- **Transport**: QUIC / UDP (Poort 8444)
 - **Handshake**: 0-RTT (Zero Round-Trip Time)
 - **Beste Use Case**: Hoge internetsnelheden met minimale latency (browsing, VoIP, gaming).
 - **Werking**:
@@ -37,7 +37,7 @@ Project Amnion 2.0 gebruikt **sing-box** om drie moderne protocollen te onderste
 
 ### 🛡️ 3. VLESS + REALITY
 
-- **Transport**: TCP + TLS Camouflage
+- **Transport**: TCP + TLS Camouflage (Poort 443)
 - **Handshake**: Direct TLS SNI Mimicry (Vision flow)
 - **Beste Use Case**: Netwerken met Deep Packet Inspection (DPI) of strikte firewalls (zoals GFW, bedrijfsinternet of openbare netwerken die VPN-verkeer blokkeren).
 - **Werking**:
@@ -53,14 +53,14 @@ Project Amnion 2.0 gebruikt **sing-box** om drie moderne protocollen te onderste
 
 ## 2. Hiddify Next Compatibility & Subscription Standards
 
-Hiddify Next is de officiële client voor Project Amnion 2.0. Het dashboard genereert automatisch de volgende indelingen:
+Hiddify Next is de officiële client voor Project Amnion 2.0. Het dashboard genereert automatisch de volgende indelingen met vriendelijke Emoji-labels:
 
-1. **Subscriptie URL (`https://vpn.jouwdomein.nl/sub/<token>`)**:
-   - Geef een Hiddify-compatibele JSON of Base64 configuratie-stream terug.
-   - Hiddify Next kan deze link periodic auto-vernieuwen.
+1. **Subscriptie URL (`http://<server-host>:3000/api/v1/sub/<token>`)**:
+   - Geef een Hiddify-compatibele Base64 configuratie-stream terug.
+   - Hiddify Next kan deze link periodiek auto-vernieuwen.
 2. **Directe URI Schemas**:
-   - Hysteria2: `hysteria2://<uuid>@<host>:<port>?insecure=0&sni=<domain>#Amnion-HY2`
-   - TUIC: `tuic://<uuid>:<password>@<host>:<port>?congestion_control=bbr&udp_relay_mode=native&sni=<domain>#Amnion-TUIC`
-   - VLESS: `vless://<uuid>@<host>:<port>?type=tcp&security=reality&pbk=<public_key>&fp=chrome&sni=<sni>&sid=<short_id>&flow=xtls-rprx-vision#Amnion-VLESS`
+   - Hysteria 2: `hysteria2://<uuid>@<host>:8443?insecure=1&sni=<domain>#🚀 HY2 (Mobiel 4G/5G) - <username>`
+   - TUIC v5: `tuic://<uuid>:<uuid>@<host>:8444?congestion_control=bbr&allow_insecure=1&insecure=1&sni=<domain>#⚡ TUIC v5 (Lage Latency) - <username>`
+   - VLESS REALITY: `vless://<uuid>@<host>:443?type=tcp&security=reality&pbk=<public_key>&fp=chrome&sni=dl.google.com&sid=<short_id>&flow=xtls-rprx-vision#🛡️ VLESS REALITY (Camouflage) - <username>`
 3. **QR Codes**:
    - Genereert SVG / PNG QR-codes van de URI's of Subscription URL voor directe camera-import in de mobiele Hiddify app.

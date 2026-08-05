@@ -14,7 +14,7 @@ Project Amnion 2.0 maakt gebruik van **SQLite3** met **WAL (Write-Ahead Logging)
 
 ## 2. PRAGMA Instellingen
 
-Bij het initialiseren van de databaseverbinding worden de volgende PRAGMA's afgedwongen:
+Bij het initialiseren van de databaseverbinding in `db.ts` worden de volgende PRAGMA's afgedwongen:
 
 ```sql
 PRAGMA journal_mode = WAL;
@@ -28,65 +28,73 @@ PRAGMA foreign_keys = ON;
 ## 3. Database Schema Diagram
 
 ```mermaid
-erdiagram
+erDiagram
     USERS ||--o{ USER_PROTOCOLS : assigned
-    USERS ||--o{ SESSIONS : has
     USERS ||--o{ SUBSCRIPTION_TOKENS : owns
-    USERS ||--o{ TRAFFIC_LOGS : generates
+    ADMINS ||--o{ SESSIONS : has
     ADMINS ||--o{ AUDIT_LOGS : performs
 
     USERS {
-        text id PK
-        text username
-        text uuid
-        text status
+        string id PK
+        string username
+        string uuid
+        string status
         integer data_limit_bytes
         integer used_bytes
-        text expire_at
-        text created_at
-        text updated_at
+        string expire_at
+        string created_at
+        string updated_at
     }
 
     USER_PROTOCOLS {
-        text id PK
-        text user_id FK
-        text protocol_type
-        text settings_json
+        string id PK
+        string user_id FK
+        string protocol_type
+        string settings_json
         integer is_enabled
-        text created_at
+        string created_at
+    }
+
+    ADMINS {
+        string id PK
+        string username
+        string password_hash
+        string two_factor_secret
+        string role
+        string created_at
     }
 
     SESSIONS {
-        text id PK
-        text admin_id FK
-        text token_hash
-        text ip_address
-        text user_agent
-        text expires_at
-        text created_at
+        string id PK
+        string admin_id FK
+        string token_hash
+        string ip_address
+        string user_agent
+        string expires_at
+        string created_at
     }
 
     SUBSCRIPTION_TOKENS {
-        text id PK
-        text user_id FK
-        text token
+        string id PK
+        string user_id FK
+        string token
         integer is_active
-        text created_at
+        string created_at
     }
 
     AUDIT_LOGS {
-        text id PK
-        text admin_id
-        text action
-        text details_json
-        text ip_address
-        text created_at
+        string id PK
+        string admin_id
+        string action
+        string details_json
+        string ip_address
+        string created_at
     }
 
     SYSTEM_CONFIG {
-        text key PK
-        text value
-        text updated_at
+        string key PK
+        string value
+        string updated_at
     }
 ```
 
@@ -183,4 +191,4 @@ Om te voorkomen dat de database ongemerkt groeit op VPS'en met beperkte opslag:
    ```sql
    DELETE FROM sessions WHERE expires_at < CURRENT_TIMESTAMP;
    ```
-3. **Periodieke Vacuum**: Maandelijks voert de backend het commando `PRAGMA incremental_vacuum;` of `VACUUM;` uit via de `backup.sh` cron service.
+3. **Periodieke Vacuum**: Maandelijks voert de backend het commando `PRAGMA incremental_vacuum;` of `VACUUM;` uit via het back-upscript.

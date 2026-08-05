@@ -6,9 +6,9 @@
 
 De kerndoelstellingen van de architectuur zijn:
 1. **Zero-leaks & Hoge Privacy**: Minimale dataverzameling, geen onnodige IP-logging.
-2. **Resource Efficiëntie**: Geschikt voor kleine VPS'en met slechts 10 GB SSD en 1 GB RAM. Total schijfgebruik (inclusief OS & logs) blijft onder de 2 GB, met een strikt 1 GB plafond voor tijdelijke bestanden en logs.
+2. **Resource Efficiëntie**: Geschikt voor kleine VPS'en met slechts 10 GB SSD en 1 GB RAM. Total schijfgebruik (inclusief OS & logs) blijft onder de 500 MB, met een strikt 100 MB plafond voor systemd journald logs.
 3. **Domain-Driven Modulair**: Eenvoudig uitbreidbaar met nieuwe VPN-protocollen of beheersfuncties.
-4. **Hiddify Compatibility**: Direct bruikbaar in de mobiele en desktop client Hiddify Next.
+4. **Hiddify Compatibility**: Direct bruikbaar in de mobiele en desktop client Hiddify Next via QR-codes en Base64 subscription streams.
 
 ---
 
@@ -43,21 +43,19 @@ Project Amnion 2.0 bestaat uit drie hoofdlagen:
 ### 2.1 Backend Domain Modules (`backend/src/modules/`)
 - **Technologie**: Node.js v20+ met TypeScript en **Fastify**.
 - **Domain Modules**:
-  - `auth`: Server-side sessions, Argon2id hashing, rate limiting, CSRF.
+  - `auth`: Server-side sessions, Argon2id hashing, rate limiting (300 req/min global, 30 req/15min login), CSRF.
   - `users`: UUID generatie, gebruiker beheer, status & data limieten.
-  - `protocols`: Hysteria2, TUIC en VLESS+REALITY protocol definities.
-  - `subscriptions`: Generatie van Hiddify-compatibele subscription links & QR-codes.
-  - `stats`: Systeem- en netwerkstatistieken via `/proc` en `/sys` & WebSocket streams.
-  - `certificates`: Certbot / Let's Encrypt TLS automatiseringsbeheer.
-  - `updates`: Versie controle & update notificaties.
-  - `system`: Systemd client for sing-box graceful reload en service controle.
+  - `protocols`: Hysteria 2, TUIC v5 en VLESS+REALITY protocol definities.
+  - `subscriptions`: Generatie van Hiddify-compatibele subscription links & SVG QR-codes.
+  - `stats`: Systeem- en netwerkstatistieken via `/proc` en `/sys` & real-time RX/TX monitoring.
+  - `system`: Systemd client voor sing-box atomic config swaps, update-status tracking en geautomatiseerde tarball rollbacks.
 
 ### 2.2 VPN Engine (`sing-box`)
 - **Technologie**: `sing-box` (Go-gebaseerde universele netwerkproxy engine).
-- **Kenmerken**: Single-binary daemon met native ondersteuning voor Hysteria2, TUIC v5, en VLESS met REALITY en Vision flow.
+- **Kenmerken**: Single-binary daemon met native ondersteuning voor Hysteria 2, TUIC v5, en VLESS met REALITY en Vision flow.
 
 ### 2.3 Web Dashboard (`dashboard/`)
-- **Technologie**: SPA gebouwd met Vite + Vue 3 + Pinia Stores + Vue Router + Tailwind CSS.
+- **Technologie**: SPA gebouwd met Vite + Vue 3 + Pinia Stores + Vue Router + Tailwind CSS / Vanilla Glassmorphism CSS.
 
 ### 2.4 Database & Data Opslag (`database/`)
 - **Technologie**: **SQLite3** in WAL (Write-Ahead Logging) modus (`/var/lib/amnion/amnion.db`).
@@ -68,8 +66,8 @@ Project Amnion 2.0 bestaat uit drie hoofdlagen:
 
 Op VPS'en met slechts 10 GB schijfruimte mag het log- en tijdelijke bestandstotaal **nooit de 1 GB overschrijden**.
 
-1. **Systemd Journald Limits**: Maximaal 100 MB.
-2. **Sing-box Log Rotating**: Maximaal 50 MB met 3 rotaties.
+1. **Systemd Journald Limits**: Maximaal 100 MB (`/etc/systemd/journald.conf.d/amnion.conf`).
+2. **Sing-box Log Rotating**: Geheugen-efficiënte stdout en `info`/`warn` loglevels.
 3. **Database Audit Logs**: Automatische retentie van 30 dagen.
 
 ---
