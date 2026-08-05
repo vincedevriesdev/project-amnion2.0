@@ -7,7 +7,7 @@
       </div>
 
       <span class="badge badge-purple" style="font-size: 13px; padding: 8px 16px;">
-        Project Amnion v2.0.43
+        Project Amnion v2.0.46
       </span>
     </div>
 

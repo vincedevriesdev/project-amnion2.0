@@ -65,6 +65,14 @@ h1, h2, h3, h4, .font-heading {
   padding: 32px 24px;
 }
 
+.main-content-full {
+  flex: 1;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
 /* Navigation Bar */
 .navbar {
   background: rgba(15, 23, 42, 0.8);

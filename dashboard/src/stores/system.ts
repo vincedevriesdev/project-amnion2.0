@@ -14,7 +14,7 @@ export interface UpdateProgress {
 
 export const useSystemStore = defineStore('system', () => {
   const stats = ref<any>({
-    version: 'v2.0.43',
+    version: 'v2.0.46',
     serverStatus: 'online',
     services: { singBox: 'active', backend: 'active' },
     memory: { totalBytes: 0, usedBytes: 0, freeBytes: 0, usagePercentage: 0 },

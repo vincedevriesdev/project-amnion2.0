@@ -1,7 +1,7 @@
 <template>
   <div class="app-wrapper">
     <Navbar v-if="authStore.isAuthenticated" />
-    <main class="main-content" :style="!authStore.isAuthenticated ? 'padding: 0;' : ''">
+    <main :class="authStore.isAuthenticated ? 'main-content' : 'main-content-full'">
       <router-view />
     </main>
   </div>
