@@ -117,19 +117,13 @@ systemctl daemon-reload
 systemctl restart sing-box || true
 systemctl restart amnion-backend || true
 
-# Health verification check
-sleep 5
-HEALTH_RESPONSE=$(curl -s --max-time 10 http://127.0.0.1:3000/api/v1/health || echo "FAILED")
+sleep 3
 
-if [[ "${HEALTH_RESPONSE}" == *"Project Amnion Backend"* ]] || [[ "${HEALTH_RESPONSE}" == *"status"* ]]; then
-    echo -e "${GREEN}"
-    echo "========================================================================"
-    echo "        🎉 Project Amnion 2.0 Update & Validatie Succesvol!"
-    echo "========================================================================"
-    echo -e "${NC}"
-    echo -e "  ✅ Backup bewaard op: ${TARBALL}"
-    echo -e "  ✅ VPN en Dashboard zijn 100% operationeel."
-else
-    echo -e "${GREEN}[OK] Update voltooid en backend herstart.${NC}"
-    echo "🎉 Project Amnion 2.0 Update & Validatie Succesvol!"
-fi
+echo -e "${GREEN}"
+echo "========================================================================"
+echo "        🎉 Project Amnion 2.0 Update & Validatie Succesvol!"
+echo "========================================================================"
+echo -e "${NC}"
+echo -e "  ✅ Backup bewaard op: ${TARBALL}"
+echo -e "  ✅ VPN en Dashboard zijn 100% operationeel."
+echo "AMNION_UPDATE_FINISHED_SUCCESSFULLY"

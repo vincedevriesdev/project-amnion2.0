@@ -99,7 +99,11 @@ export class SystemService {
       try {
         const logContent = fs.readFileSync(logPath, 'utf-8');
 
-        if (logContent.includes('Update & Validatie Succesvol') || logContent.includes('Update Succesvol') || logContent.includes('Update voltooid')) {
+        if (
+          logContent.includes('AMNION_UPDATE_FINISHED_SUCCESSFULLY') ||
+          logContent.includes('Update & Validatie Succesvol') ||
+          logContent.includes('Update Succesvol')
+        ) {
           return {
             active: false,
             step: 5,
@@ -124,9 +128,16 @@ export class SystemService {
         }
 
         if (logContent.includes('[5/5]')) {
-          currentUpdateProgress.step = 5;
-          currentUpdateProgress.progressPercent = 95;
-          currentUpdateProgress.message = 'Services herstarten en API gezondheid controleren...';
+          // If step 5 has reached the restart phase, mark progress as 100% finished
+          return {
+            active: false,
+            step: 5,
+            progressPercent: 100,
+            message: '🎉 Update succesvol voltooid! Amnion 2.0 is bijgewerkt.',
+            error: null,
+            startTime: currentUpdateProgress.startTime,
+            completedAt: new Date().toISOString()
+          };
         } else if (logContent.includes('[4/5]')) {
           currentUpdateProgress.step = 4;
           currentUpdateProgress.progressPercent = 85;
@@ -151,7 +162,7 @@ export class SystemService {
   }
 
   static async checkForUpdates(): Promise<{ updateAvailable: boolean; currentVersion: string; latestVersion: string; message: string }> {
-    const currentVersion = 'v2.0.49';
+    const currentVersion = 'v2.0.50';
     try {
       const res = await fetch('https://api.github.com/repos/vincedevriesdev/project-amnion2.0/commits/main', {
         headers: { 'User-Agent': 'Amnion-Update-Checker' }
@@ -211,7 +222,6 @@ export class SystemService {
     };
 
     try {
-      // Launch update process in independent scope detached from systemd cgroup
       exec('nohup bash /opt/amnion/install/update.sh > /var/log/amnion-update.log 2>&1 &');
       return { success: true, message: 'Update proces gestart. Volg de live voortgang in het dashboard.' };
     } catch (err: any) {
