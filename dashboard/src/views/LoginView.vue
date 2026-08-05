@@ -8,9 +8,8 @@
     <div class="login-card">
       <!-- Top Brand Header -->
       <div style="text-align: center; margin-bottom: 36px; position: relative; z-index: 2;">
-        <div class="brand-logo-container">
-          <div class="brand-logo-glow"></div>
-          <div class="brand-logo-icon">A</div>
+        <div style="margin: 0 auto 20px auto; display: flex; justify-content: center;">
+          <AmnionLogo :size="68" />
         </div>
         <h1 style="font-size: 28px; font-weight: 900; color: #ffffff; letter-spacing: -0.5px; margin-bottom: 6px;">
           Project Amnion <span class="version-tag">2.0</span>
@@ -64,6 +63,7 @@
 import { ref } from 'vue';
 import { useAuthStore } from '../stores/auth';
 import { useRouter } from 'vue-router';
+import AmnionLogo from '../components/AmnionLogo.vue';
 
 const authStore = useAuthStore();
 const router = useRouter();
@@ -141,38 +141,6 @@ async function handleLogin() {
   border-radius: 24px;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 80px rgba(16, 185, 129, 0.05);
   position: relative;
-}
-
-.brand-logo-container {
-  position: relative;
-  width: 64px;
-  height: 64px;
-  margin: 0 auto 20px auto;
-}
-
-.brand-logo-glow {
-  position: absolute;
-  inset: -4px;
-  background: linear-gradient(135deg, #10b981 0%, #06b6d4 100%);
-  border-radius: 20px;
-  filter: blur(12px);
-  opacity: 0.6;
-}
-
-.brand-logo-icon {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(135deg, #059669 0%, #0284c7 100%);
-  border-radius: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 32px;
-  font-weight: 900;
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.3);
 }
 
 .version-tag {

@@ -1,7 +1,7 @@
 <template>
   <nav class="navbar">
     <router-link to="/" class="nav-brand">
-      <div class="brand-icon">A</div>
+      <AmnionLogo :size="38" />
       <div>
         <div class="brand-title">AMNION <span>2.0</span></div>
         <div class="brand-subtitle">Self-Hosted VPN Engine</div>
@@ -26,6 +26,7 @@
 <script setup lang="ts">
 import { useAuthStore } from '../stores/auth';
 import { useRouter } from 'vue-router';
+import AmnionLogo from './AmnionLogo.vue';
 
 const authStore = useAuthStore();
 const router = useRouter();
