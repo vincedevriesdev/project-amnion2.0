@@ -98,41 +98,51 @@ export class SystemService {
     if (fs.existsSync(logPath)) {
       try {
         const logContent = fs.readFileSync(logPath, 'utf-8');
-        if (logContent.includes('[1/5]')) {
-          currentUpdateProgress.step = 1;
-          currentUpdateProgress.progressPercent = 20;
-          currentUpdateProgress.message = 'Pre-update tarball backup maken van database en sleutels...';
+
+        if (logContent.includes('Update & Validatie Succesvol') || logContent.includes('Update Succesvol')) {
+          return {
+            active: false,
+            step: 5,
+            progressPercent: 100,
+            message: '🎉 Update succesvol voltooid! Amnion 2.0 is nu bijgewerkt naar de nieuwste versie.',
+            error: null,
+            startTime: currentUpdateProgress.startTime,
+            completedAt: new Date().toISOString()
+          };
         }
-        if (logContent.includes('[2/5]')) {
-          currentUpdateProgress.step = 2;
-          currentUpdateProgress.progressPercent = 40;
-          currentUpdateProgress.message = 'Nieuwste Amnion code ophalen van GitHub...';
+
+        if (logContent.includes('[ERROR]') || logContent.includes('Rollback succesvol')) {
+          return {
+            active: false,
+            step: 5,
+            progressPercent: 0,
+            message: 'Fout tijdens update. Vorige staat hersteld.',
+            error: 'Update mislukt! Automatische Rollback is uitgevoerd om de VPN online te houden.',
+            startTime: currentUpdateProgress.startTime,
+            completedAt: new Date().toISOString()
+          };
         }
-        if (logContent.includes('[3/5]')) {
-          currentUpdateProgress.step = 3;
-          currentUpdateProgress.progressPercent = 65;
-          currentUpdateProgress.message = 'Backend en Dashboard dependencies installeren en bouwen...';
-        }
-        if (logContent.includes('[4/5]')) {
-          currentUpdateProgress.step = 4;
-          currentUpdateProgress.progressPercent = 85;
-          currentUpdateProgress.message = 'Sing-box VPN configuraties valideren...';
-        }
+
         if (logContent.includes('[5/5]')) {
           currentUpdateProgress.step = 5;
           currentUpdateProgress.progressPercent = 95;
           currentUpdateProgress.message = 'Services herstarten en API gezondheid controleren...';
-        }
-        if (logContent.includes('Update & Validatie Succesvol') || logContent.includes('Update Succesvol')) {
-          currentUpdateProgress.active = false;
-          currentUpdateProgress.step = 5;
-          currentUpdateProgress.progressPercent = 100;
-          currentUpdateProgress.message = '🎉 Update succesvol voltooid! Amnion 2.0 is nu bijgewerkt naar de nieuwste versie.';
-          currentUpdateProgress.completedAt = new Date().toISOString();
-        } else if (logContent.includes('[ERROR]') || logContent.includes('Rollback succesvol')) {
-          currentUpdateProgress.active = false;
-          currentUpdateProgress.error = 'Update mislukt! Automatische Rollback is uitgevoerd om de VPN online te houden.';
-          currentUpdateProgress.message = 'Fout tijdens update. Vorige staat hersteld.';
+        } else if (logContent.includes('[4/5]')) {
+          currentUpdateProgress.step = 4;
+          currentUpdateProgress.progressPercent = 85;
+          currentUpdateProgress.message = 'Sing-box VPN configuraties valideren...';
+        } else if (logContent.includes('[3/5]')) {
+          currentUpdateProgress.step = 3;
+          currentUpdateProgress.progressPercent = 65;
+          currentUpdateProgress.message = 'Backend en Dashboard dependencies installeren en bouwen...';
+        } else if (logContent.includes('[2/5]')) {
+          currentUpdateProgress.step = 2;
+          currentUpdateProgress.progressPercent = 40;
+          currentUpdateProgress.message = 'Nieuwste Amnion code ophalen van GitHub...';
+        } else if (logContent.includes('[1/5]')) {
+          currentUpdateProgress.step = 1;
+          currentUpdateProgress.progressPercent = 20;
+          currentUpdateProgress.message = 'Pre-update tarball backup maken van database en sleutels...';
         }
       } catch {}
     }
@@ -141,7 +151,7 @@ export class SystemService {
   }
 
   static async checkForUpdates(): Promise<{ updateAvailable: boolean; currentVersion: string; latestVersion: string; message: string }> {
-    const currentVersion = 'v2.0.42';
+    const currentVersion = 'v2.0.43';
     try {
       const res = await fetch('https://api.github.com/repos/vincedevriesdev/project-amnion2.0/commits/main', {
         headers: { 'User-Agent': 'Amnion-Update-Checker' }
@@ -184,9 +194,11 @@ export class SystemService {
       }
     }
 
-    if (currentUpdateProgress.active) {
-      return { success: false, message: 'Er is al een update actief op het systeem!' };
-    }
+    // Clean log file before triggering new update
+    try {
+      const logPath = '/var/log/amnion-update.log';
+      if (fs.existsSync(logPath)) fs.unlinkSync(logPath);
+    } catch {}
 
     currentUpdateProgress = {
       active: true,
