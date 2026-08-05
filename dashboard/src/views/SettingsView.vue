@@ -6,8 +6,8 @@
         <p class="page-subtitle">Beheer admin authenticatie, REALITY sleutels en updates</p>
       </div>
 
-      <span v-if="systemStore.stats.version" class="badge badge-purple" style="font-size: 13px; padding: 8px 16px;">
-        Project Amnion {{ systemStore.stats.version }}
+      <span class="badge badge-purple" style="font-size: 13px; padding: 8px 16px;">
+        Project Amnion {{ systemStore.stats?.version || 'v2.0...' }}
       </span>
     </div>
 
@@ -140,6 +140,7 @@ const toastSuccess = ref(true);
 let pollTimer: any = null;
 
 onMounted(() => {
+  systemStore.fetchStats();
   systemStore.fetchRealityInfo();
 });
 
