@@ -31,16 +31,25 @@ let currentUpdateProgress: UpdateProgress = {
 
 export class SystemService {
   /**
-   * Dynamically calculates local version string based on git commit count
+   * Dynamically calculates local version string based on git commit count across candidate workspace directories
    */
   static getLocalVersion(): string {
-    try {
-      const stdout = execSync('git rev-list --count HEAD', { encoding: 'utf-8' }).toString().trim();
-      if (stdout && !isNaN(Number(stdout))) {
-        return `v2.0.${stdout}`;
-      }
-    } catch {}
-    return 'v2.0.53';
+    const candidateDirs = [
+      process.cwd(),
+      path.resolve(process.cwd(), '..'),
+      '/opt/amnion'
+    ];
+    for (const dir of candidateDirs) {
+      try {
+        if (fs.existsSync(path.join(dir, '.git'))) {
+          const stdout = execSync('git rev-list --count HEAD', { encoding: 'utf-8', cwd: dir }).toString().trim();
+          if (stdout && !isNaN(Number(stdout))) {
+            return `v2.0.${stdout}`;
+          }
+        }
+      } catch {}
+    }
+    return 'v2.0.54';
   }
 
   /**
@@ -200,7 +209,7 @@ export class SystemService {
 
   static async checkForUpdates(): Promise<{ updateAvailable: boolean; currentVersion: string; latestVersion: string; message: string }> {
     const localVer = this.getLocalVersion();
-    const localCount = parseInt(localVer.replace('v2.0.', ''), 10) || 53;
+    const localCount = parseInt(localVer.replace('v2.0.', ''), 10) || 54;
     const remoteCount = await this.getRemoteCommitCount();
 
     if (remoteCount !== null) {
@@ -226,7 +235,7 @@ export class SystemService {
       updateAvailable: false,
       currentVersion: localVer,
       latestVersion: localVer,
-      message: `✅ Jij hebt versie ${localVer} en het systeem is up-to-date.`
+      message: `✅ Jij hebt versie ${localVer} en de server is up-to-date.`
     };
   }
 
