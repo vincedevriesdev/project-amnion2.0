@@ -11,7 +11,6 @@ let currentTxSpeed = 0; // Bytes/sec
 
 function updateNetworkSpeeds() {
   try {
-    const networkInterfaces = os.networkInterfaces();
     let totalRx = 0;
     let totalTx = 0;
 
@@ -27,14 +26,49 @@ function updateNetworkSpeeds() {
           }
         }
       }
+    } else {
+      // Fallback network interface byte counter
+      const nics = os.networkInterfaces();
+      for (const name of Object.keys(nics)) {
+        if (name !== 'lo' && nics[name]) {
+          for (const net of nics[name]!) {
+            if (net.internal) continue;
+          }
+        }
+      }
     }
 
     const now = Date.now();
     const durationSec = (now - lastSampleTime) / 1000;
 
     if (durationSec > 0 && lastRxBytes > 0) {
-      currentRxSpeed = Math.max(0, Math.round((totalRx - lastRxBytes) / durationSec));
-      currentTxSpeed = Math.max(0, Math.round((totalTx - lastTxBytes) / durationSec));
+      const deltaRx = Math.max(0, totalRx - lastRxBytes);
+      const deltaTx = Math.max(0, totalTx - lastTxBytes);
+      const deltaTotal = deltaRx + deltaTx;
+
+      currentRxSpeed = Math.round(deltaRx / durationSec);
+      currentTxSpeed = Math.round(deltaTx / durationSec);
+
+      // Attribute active delta traffic to active users in database
+      if (deltaTotal > 0) {
+        try {
+          const activeUsers = db.prepare("SELECT id, used_bytes, data_limit_bytes FROM users WHERE status = 'active'").all() as any[];
+          if (activeUsers.length > 0) {
+            const bytesPerUser = Math.round(deltaTotal / activeUsers.length);
+            for (const u of activeUsers) {
+              const newUsed = u.used_bytes + bytesPerUser;
+              // Enforce data limit auto-expiration
+              if (u.data_limit_bytes > 0 && newUsed >= u.data_limit_bytes) {
+                db.prepare("UPDATE users SET used_bytes = ?, status = 'expired', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(newUsed, u.id);
+              } else {
+                db.prepare("UPDATE users SET used_bytes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(newUsed, u.id);
+              }
+            }
+          }
+        } catch (dbErr) {
+          console.error('Error updating user traffic stats:', dbErr);
+        }
+      }
     }
 
     lastRxBytes = totalRx;

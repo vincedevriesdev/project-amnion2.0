@@ -68,7 +68,7 @@
             <th>Gebruiker</th>
             <th>Status</th>
             <th>Dataverbruik</th>
-            <th>Actieve Protocollen</th>
+            <th>Actieve Protocollen & Status</th>
             <th>Hiddify Subscriptie</th>
             <th style="text-align: right;">Acties</th>
           </tr>
@@ -98,11 +98,14 @@
               </div>
             </td>
 
-            <!-- Enabled Protocols -->
+            <!-- Enabled Protocols & Active Badge -->
             <td>
               <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
                 <span v-for="p in user.protocols" :key="p.protocol_type" v-show="p.is_enabled" class="badge" :class="getProtocolBadgeClass(p.protocol_type)">
                   {{ getProtocolLabel(p.protocol_type) }}
+                </span>
+                <span v-if="user.activeProtocol" class="badge badge-emerald" style="font-size: 10px; padding: 4px 8px;">
+                  🟢 {{ user.activeProtocol }}
                 </span>
               </div>
             </td>
