@@ -169,7 +169,7 @@ export class StatsService {
     }
 
     return {
-      version: 'v2.0.50',
+      version: 'v2.0.51',
       serverStatus: 'online',
       services: {
         singBox: singBoxActive ? 'active' : 'inactive',

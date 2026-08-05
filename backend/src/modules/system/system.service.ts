@@ -162,7 +162,7 @@ export class SystemService {
   }
 
   static async checkForUpdates(): Promise<{ updateAvailable: boolean; currentVersion: string; latestVersion: string; message: string }> {
-    const currentVersion = 'v2.0.50';
+    const currentVersion = 'v2.0.51';
     try {
       const res = await fetch('https://api.github.com/repos/vincedevriesdev/project-amnion2.0/commits/main', {
         headers: { 'User-Agent': 'Amnion-Update-Checker' }
