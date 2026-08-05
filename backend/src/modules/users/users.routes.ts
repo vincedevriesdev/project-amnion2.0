@@ -16,6 +16,28 @@ export async function usersRoutes(fastify: FastifyInstance) {
     return { users: UsersService.listUsers() };
   });
 
+  fastify.get('/export', async (request: FastifyRequest, reply: FastifyReply) => {
+    const exportData = UsersService.exportUsersData();
+    reply.header('Content-Type', 'application/json');
+    reply.header('Content-Disposition', `attachment; filename=amnion-users-export-${Date.now()}.json`);
+    return { users: exportData, exportedAt: new Date().toISOString() };
+  });
+
+  fastify.post('/import', async (request: FastifyRequest, reply: FastifyReply) => {
+    const { users } = request.body as any;
+    if (!users || !Array.isArray(users)) {
+      return reply.status(400).send({ error: 'Ongeldige of ontbrekende gebruikerslijst' });
+    }
+    try {
+      const res = UsersService.importUsersData(users);
+      // Automatically sync and reload sing-box VPN engine
+      await SystemService.syncAndReloadSingBox();
+      return { status: 'ok', importedUsersCount: res.count };
+    } catch (err: any) {
+      return reply.status(400).send({ error: err.message });
+    }
+  });
+
   fastify.get('/:id', async (request: FastifyRequest, reply: FastifyReply) => {
     const { id } = request.params as any;
     const user = UsersService.getUserById(id);

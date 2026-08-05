@@ -57,5 +57,16 @@ export const useUserStore = defineStore('users', () => {
     await fetchUsers();
   }
 
-  return { users, loading, fetchUsers, createUser, updateUser, resetToken, deleteUser };
+  async function exportUsers() {
+    const res = await api.get('/users/export');
+    return res.data;
+  }
+
+  async function importUsers(usersList: any[]) {
+    const res = await api.post('/users/import', { users: usersList });
+    await fetchUsers();
+    return res.data;
+  }
+
+  return { users, loading, fetchUsers, createUser, updateUser, resetToken, deleteUser, exportUsers, importUsers };
 });

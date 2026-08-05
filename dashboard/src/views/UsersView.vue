@@ -6,10 +6,23 @@
         <p class="page-subtitle">Beheer VPN-gebruikers, Hiddify-configuraties en actieve protocollen</p>
       </div>
 
-      <button @click="openAddModal" class="btn btn-primary">
-        <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-        Nieuwe Gebruiker
-      </button>
+      <div style="display: flex; gap: 12px; align-items: center;">
+        <button @click="handleExportJSON" class="btn btn-secondary">
+          <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          Exporteer JSON
+        </button>
+
+        <button @click="triggerFileInput" class="btn btn-secondary">
+          <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+          Importeer JSON
+        </button>
+        <input ref="fileInput" type="file" accept=".json" style="display: none;" @change="handleFileImport" />
+
+        <button @click="openAddModal" class="btn btn-primary">
+          <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          Nieuwe Gebruiker
+        </button>
+      </div>
     </div>
 
     <!-- Alert Toast -->
@@ -181,6 +194,8 @@ import QrCodeModal from '../components/QrCodeModal.vue';
 
 const userStore = useUserStore();
 
+const fileInput = ref<HTMLInputElement | null>(null);
+
 const showModal = ref(false);
 const isEditing = ref(false);
 const saving = ref(false);
@@ -206,6 +221,62 @@ const totalUsedBytes = computed(() => {
 onMounted(() => {
   userStore.fetchUsers();
 });
+
+function triggerFileInput() {
+  fileInput.value?.click();
+}
+
+async function handleExportJSON() {
+  try {
+    const data = await userStore.exportUsers();
+    const jsonStr = JSON.stringify(data, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `amnion-users-export-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toastSuccess.value = true;
+    toastMessage.value = 'Gebruikerslijst succesvol geëxporteerd als JSON!';
+  } catch (err: any) {
+    toastSuccess.value = false;
+    toastMessage.value = 'Exporteren mislukt.';
+  }
+}
+
+async function handleFileImport(e: Event) {
+  const target = e.target as HTMLInputElement;
+  if (!target.files || target.files.length === 0) return;
+
+  const file = target.files[0];
+  const reader = new FileReader();
+
+  reader.onload = async (evt) => {
+    try {
+      const content = evt.target?.result as string;
+      const parsed = JSON.parse(content);
+      const userList = Array.isArray(parsed) ? parsed : (parsed.users || []);
+
+      if (userList.length === 0) {
+        toastSuccess.value = false;
+        toastMessage.value = 'Geen geldige gebruikers gevonden in het geüploade bestand.';
+        return;
+      }
+
+      const res = await userStore.importUsers(userList);
+      toastSuccess.value = true;
+      toastMessage.value = `🎉 Succesvol ${res.importedUsersCount} gebruiker(s) geïmporteerd & VPN gesynchroniseerd!`;
+    } catch (err: any) {
+      toastSuccess.value = false;
+      toastMessage.value = 'Importeren mislukt. Zorg dat het een geldig Amnion JSON bestand is.';
+    } finally {
+      if (fileInput.value) fileInput.value.value = '';
+    }
+  };
+
+  reader.readAsText(file);
+}
 
 function openAddModal() {
   isEditing.value = false;
