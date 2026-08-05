@@ -3,63 +3,139 @@
     <div class="page-header">
       <div>
         <h1 class="page-title">Analyses & Netwerkstatistieken</h1>
-        <p class="page-subtitle">Diepgaand inzicht in dataverbruik, top gebruikers en protocol prestaties</p>
+        <p class="page-subtitle">Diepgaand inzicht in dataverbruik, live bandbreedte, protocolverdeling en serverbelasting</p>
       </div>
 
       <span class="badge badge-emerald" style="font-size: 13px; padding: 8px 16px;">
         <span style="width: 8px; height: 8px; border-radius: 50%; background: #34d399; display: inline-block;"></span>
-        Live Monitoring Actief
+        Live Monitoring (3s)
       </span>
     </div>
 
-    <!-- Analytics Top Cards -->
-    <div class="grid-3" style="margin-bottom: 32px;">
-      <!-- Most Used Protocol Card -->
+    <!-- Analytics Top Cards Grid -->
+    <div class="grid-4" style="margin-bottom: 32px;" v-if="systemStore.stats">
+      <!-- Live RX Speed -->
       <div class="glass-card">
         <div class="flex-between" style="margin-bottom: 12px;">
-          <span class="form-label" style="margin-bottom: 0;">Populairste Protocol</span>
-          <span class="badge badge-purple">Meest Gebruikt</span>
+          <span class="form-label" style="margin-bottom: 0;">Inkomende Snelheid</span>
+          <span class="font-mono text-cyan" style="font-weight: 700;">RX Bandwidth</span>
         </div>
-        <div style="font-size: 28px; font-weight: 800; color: #fff; margin-bottom: 4px;">
-          {{ systemStore.stats.mostUsedProtocol }}
-        </div>
-        <div style="font-size: 13px; color: var(--text-muted);">
-          Geselecteerd door het grootste aantal VPN-clients
-        </div>
-      </div>
-
-      <!-- Live Network RX Speed -->
-      <div class="glass-card">
-        <div class="flex-between" style="margin-bottom: 12px;">
-          <span class="form-label" style="margin-bottom: 0;">Live Inkomend (Download)</span>
-          <span class="font-mono text-cyan" style="font-weight: 700;">RX Speed</span>
-        </div>
-        <div style="font-size: 28px; font-weight: 800; color: #fff; margin-bottom: 4px;">
+        <div style="font-size: 26px; font-weight: 800; color: #fff; margin-bottom: 4px;">
           {{ formatSpeed(systemStore.stats.network?.rxSpeedBytesPerSec || 0) }}
         </div>
-        <div style="font-size: 13px; color: var(--text-muted);">
-          Actuele netwerksnelheid op de VPS
+        <div style="font-size: 12px; color: var(--text-muted);">Real-time inkomende VPS data</div>
+      </div>
+
+      <!-- Live TX Speed -->
+      <div class="glass-card">
+        <div class="flex-between" style="margin-bottom: 12px;">
+          <span class="form-label" style="margin-bottom: 0;">Uitgaande Snelheid</span>
+          <span class="font-mono text-emerald" style="font-weight: 700;">TX Bandwidth</span>
+        </div>
+        <div style="font-size: 26px; font-weight: 800; color: #fff; margin-bottom: 4px;">
+          {{ formatSpeed(systemStore.stats.network?.txSpeedBytesPerSec || 0) }}
+        </div>
+        <div style="font-size: 12px; color: var(--text-muted);">Real-time uitgaande VPN doorvoer</div>
+      </div>
+
+      <!-- Most Popular Protocol -->
+      <div class="glass-card">
+        <div class="flex-between" style="margin-bottom: 12px;">
+          <span class="form-label" style="margin-bottom: 0;">Meest Gebruikt Protocol</span>
+          <span class="badge badge-purple">Dominant</span>
+        </div>
+        <div style="font-size: 26px; font-weight: 800; color: #fff; margin-bottom: 4px;">
+          {{ systemStore.stats.mostUsedProtocol }}
+        </div>
+        <div style="font-size: 12px; color: var(--text-muted);">Hoogste aantal client verbindingen</div>
+      </div>
+
+      <!-- System Load Average -->
+      <div class="glass-card">
+        <div class="flex-between" style="margin-bottom: 12px;">
+          <span class="form-label" style="margin-bottom: 0;">CPU Belasting (1m/5m/15m)</span>
+          <span class="font-mono text-amber" style="font-weight: 700;">Load</span>
+        </div>
+        <div style="font-size: 26px; font-weight: 800; color: #fff; margin-bottom: 4px;">
+          {{ systemStore.stats.cpu.loadAvg1m }} / {{ systemStore.stats.cpu.loadAvg5m }}
+        </div>
+        <div style="font-size: 12px; color: var(--text-muted);">{{ systemStore.stats.cpu.cores }} CPU Cores actief</div>
+      </div>
+    </div>
+
+    <!-- Protocol Distribution & Performance Grid -->
+    <div class="grid-2" style="margin-bottom: 32px;" v-if="systemStore.stats">
+      <!-- Protocol Distribution Visualizer -->
+      <div class="glass-card">
+        <h3 style="font-size: 18px; font-weight: 800; color: #fff; margin-bottom: 20px;">📊 Actieve Protocol Verdeling</h3>
+
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+          <!-- Hysteria 2 -->
+          <div>
+            <div class="flex-between" style="font-size: 14px; margin-bottom: 6px;">
+              <span style="font-weight: 700; color: #fff;">🚀 Hysteria 2 (UDP QUIC)</span>
+              <span class="font-mono text-cyan" style="font-weight: 700;">{{ systemStore.stats.protocolDistribution?.hysteria2 || 0 }} Clients</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" style="background: var(--accent-cyan);" :style="{ width: getProtocolPercent('hysteria2') + '%' }"></div>
+            </div>
+          </div>
+
+          <!-- TUIC v5 -->
+          <div>
+            <div class="flex-between" style="font-size: 14px; margin-bottom: 6px;">
+              <span style="font-weight: 700; color: #fff;">⚡ TUIC v5 (UDP 0-RTT)</span>
+              <span class="font-mono text-purple" style="font-weight: 700;">{{ systemStore.stats.protocolDistribution?.tuic || 0 }} Clients</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" style="background: var(--accent-purple);" :style="{ width: getProtocolPercent('tuic') + '%' }"></div>
+            </div>
+          </div>
+
+          <!-- VLESS REALITY -->
+          <div>
+            <div class="flex-between" style="font-size: 14px; margin-bottom: 6px;">
+              <span style="font-weight: 700; color: #fff;">🛡️ VLESS REALITY (TCP Camouflage)</span>
+              <span class="font-mono text-amber" style="font-weight: 700;">{{ systemStore.stats.protocolDistribution?.vless_reality || 0 }} Clients</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" style="background: #f59e0b;" :style="{ width: getProtocolPercent('vless_reality') + '%' }"></div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- Live Network TX Speed -->
+      <!-- Server Resource Efficiency & Protection -->
       <div class="glass-card">
-        <div class="flex-between" style="margin-bottom: 12px;">
-          <span class="form-label" style="margin-bottom: 0;">Live Uitgaand (Upload)</span>
-          <span class="font-mono text-emerald" style="font-weight: 700;">TX Speed</span>
-        </div>
-        <div style="font-size: 28px; font-weight: 800; color: #fff; margin-bottom: 4px;">
-          {{ formatSpeed(systemStore.stats.network?.txSpeedBytesPerSec || 0) }}
-        </div>
-        <div style="font-size: 13px; color: var(--text-muted);">
-          Actuele uitgaande doorvoersnelheid
+        <h3 style="font-size: 18px; font-weight: 800; color: #fff; margin-bottom: 16px;">🛡️ Server Efficiëntie & Opslag (10 GB Cap)</h3>
+        
+        <div style="display: flex; flex-direction: column; gap: 12px; font-size: 13px;">
+          <div style="background: rgba(15, 23, 42, 0.6); padding: 14px; border-radius: 12px; border: 1px solid var(--border-glass);" class="flex-between">
+            <span class="text-muted">RAM Geheugenverbruik:</span>
+            <span class="font-mono text-emerald" style="font-weight: 700;">{{ formatBytes(systemStore.stats.memory.usedBytes) }} / {{ formatBytes(systemStore.stats.memory.totalBytes) }} ({{ systemStore.stats.memory.usagePercentage }}%)</span>
+          </div>
+
+          <div style="background: rgba(15, 23, 42, 0.6); padding: 14px; border-radius: 12px; border: 1px solid var(--border-glass);" class="flex-between">
+            <span class="text-muted">SSD Schijfgebruik:</span>
+            <span class="font-mono text-purple" style="font-weight: 700;">{{ formatBytes(systemStore.stats.disk.usedBytes) }} / {{ formatBytes(systemStore.stats.disk.totalBytes) }} ({{ systemStore.stats.disk.usagePercentage }}%)</span>
+          </div>
+
+          <div style="background: rgba(15, 23, 42, 0.6); padding: 14px; border-radius: 12px; border: 1px solid var(--border-glass);" class="flex-between">
+            <span class="text-muted">Database Modus:</span>
+            <span class="font-mono text-cyan" style="font-weight: 700;">SQLite3 (WAL Modus)</span>
+          </div>
+
+          <div style="background: rgba(15, 23, 42, 0.6); padding: 14px; border-radius: 12px; border: 1px solid var(--border-glass);" class="flex-between">
+            <span class="text-muted">Journald Log Limit:</span>
+            <span class="font-mono text-emerald" style="font-weight: 700;">Max 100 MB Cap</span>
+          </div>
         </div>
       </div>
     </div>
 
     <!-- Leaderboard: Top Active Users -->
     <div class="glass-card" style="margin-bottom: 32px;" v-if="systemStore.stats">
-      <h3 style="font-size: 18px; font-weight: 800; color: #fff; margin-bottom: 20px;">🏆 Meest Actieve VPN Gebruikers</h3>
+      <h3 style="font-size: 18px; font-weight: 800; color: #fff; margin-bottom: 20px;">🏆 Top VPN Dataverbruikers (Leaderboard)</h3>
       
       <div class="table-wrapper">
         <table class="data-table">
@@ -101,27 +177,6 @@
         </table>
       </div>
     </div>
-
-    <!-- Traffic Breakdown Visualizer -->
-    <div class="glass-card" v-if="systemStore.stats">
-      <h3 style="font-size: 18px; font-weight: 800; color: #fff; margin-bottom: 20px;">📊 Protocol Geheugen & Netwerk Efficiëntie</h3>
-      <div class="grid-3">
-        <div style="background: rgba(15, 23, 42, 0.6); padding: 20px; border-radius: 16px; border: 1px solid var(--border-glass);">
-          <div style="font-weight: 700; color: #fff; margin-bottom: 6px;">Hysteria 2 (UDP)</div>
-          <div style="font-size: 13px; color: var(--text-muted);">Hoge pakketverlies tolerantie met Quic / BBR congestion control. Optimaliseert mobiele 4G/5G data.</div>
-        </div>
-
-        <div style="background: rgba(15, 23, 42, 0.6); padding: 20px; border-radius: 16px; border: 1px solid var(--border-glass);">
-          <div style="font-weight: 700; color: #fff; margin-bottom: 6px;">TUIC v5 (UDP 0-RTT)</div>
-          <div style="font-size: 13px; color: var(--text-muted);">Multiplexing over QUIC met zero-RTT handshakes voor minimale latency en snelle browsing.</div>
-        </div>
-
-        <div style="background: rgba(15, 23, 42, 0.6); padding: 20px; border-radius: 16px; border: 1px solid var(--border-glass);">
-          <div style="font-weight: 700; color: #fff; margin-bottom: 6px;">VLESS + REALITY (TCP)</div>
-          <div style="font-size: 13px; color: var(--text-muted);">Directe TLS mimicry naar externe legitieme HTTPS servers om DPI firewalls geruisloos te omzeilen.</div>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -142,6 +197,14 @@ onMounted(() => {
 onUnmounted(() => {
   if (timer) clearInterval(timer);
 });
+
+function getProtocolPercent(protoType: string) {
+  if (!systemStore.stats || !systemStore.stats.protocolDistribution) return 0;
+  const dist = systemStore.stats.protocolDistribution;
+  const total = (dist.hysteria2 || 0) + (dist.tuic || 0) + (dist.vless_reality || 0);
+  if (total === 0) return 33;
+  return Math.round(((dist[protoType] || 0) / total) * 100);
+}
 
 function formatBytes(bytes: number) {
   if (bytes === 0) return '0 B';

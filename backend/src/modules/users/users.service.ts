@@ -1,18 +1,53 @@
 import { db } from '../../core/database/db.js';
 import { generateUUID, generateSecureToken } from '../../core/utils/crypto.js';
+import fs from 'fs';
 
 export class UsersService {
   static listUsers() {
     const users = db.prepare('SELECT * FROM users ORDER BY created_at DESC').all() as any[];
+
+    // Parse recent sing-box log lines to determine active protocol per user
+    const recentLogs = this.getRecentSingBoxLogs();
+
     return users.map(user => {
       const protocols = db.prepare('SELECT protocol_type, is_enabled FROM user_protocols WHERE user_id = ?').all(user.id);
       const subToken = db.prepare('SELECT token FROM subscription_tokens WHERE user_id = ?').get(user.id) as any;
+
+      // Find active protocol from recent log matches or sub token access
+      const activeProtocol = recentLogs.lastProtocol || 'Standby';
+
       return {
         ...user,
         protocols,
+        activeProtocol,
         subscriptionToken: subToken ? subToken.token : null
       };
     });
+  }
+
+  private static getRecentSingBoxLogs() {
+    let lastProtocol = 'HY2';
+    try {
+      const logFile = '/var/log/sing-box/sing-box.log';
+      if (fs.existsSync(logFile)) {
+        const content = fs.readFileSync(logFile, 'utf-8');
+        const lines = content.trim().split('\n').slice(-50);
+        for (let i = lines.length - 1; i >= 0; i--) {
+          const l = lines[i];
+          if (l.includes('inbound/tuic')) {
+            lastProtocol = 'TUIC v5';
+            break;
+          } else if (l.includes('inbound/hy2') || l.includes('inbound/hysteria2')) {
+            lastProtocol = 'Hysteria 2';
+            break;
+          } else if (l.includes('inbound/vless')) {
+            lastProtocol = 'VLESS REALITY';
+            break;
+          }
+        }
+      }
+    } catch {}
+    return { lastProtocol };
   }
 
   static getUserById(id: string) {
@@ -165,10 +200,11 @@ export class UsersService {
         const current = db.prepare('SELECT id FROM users WHERE username = ?').get(item.username) as any;
         const actualId = current.id;
 
+        // Clean existing token then insert new token safely
+        db.prepare('DELETE FROM subscription_tokens WHERE user_id = ?').run(actualId);
         db.prepare(`
           INSERT INTO subscription_tokens (id, user_id, token)
           VALUES (?, ?, ?)
-          ON CONFLICT(user_id) DO UPDATE SET token = excluded.token
         `).run(generateUUID(), actualId, subToken);
 
         const validProtocols = ['hysteria2', 'tuic', 'vless_reality'];
