@@ -84,7 +84,7 @@
             <!-- Status -->
             <td>
               <span class="badge" :class="user.status === 'active' ? 'badge-emerald' : 'badge-red'">
-                {{ user.status }}
+                {{ user.status === 'active' ? 'Actief' : (user.status === 'disabled' ? 'Gepauzeerd' : user.status) }}
               </span>
             </td>
 
@@ -104,7 +104,7 @@
                 <span v-for="p in user.protocols" :key="p.protocol_type" v-show="p.is_enabled" class="badge" :class="getProtocolBadgeClass(p.protocol_type)">
                   {{ getProtocolLabel(p.protocol_type) }}
                 </span>
-                <span v-if="user.activeProtocol" class="badge badge-emerald" style="font-size: 10px; padding: 4px 8px;">
+                <span v-if="user.activeProtocol && user.status === 'active'" class="badge badge-emerald" style="font-size: 10px; padding: 4px 8px;">
                   🟢 {{ user.activeProtocol }}
                 </span>
               </div>
@@ -121,6 +121,9 @@
             <!-- Actions -->
             <td style="text-align: right;">
               <div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px;">
+                <button @click="handleToggleBlock(user)" class="btn btn-sm" :class="user.status === 'active' ? 'btn-danger' : 'btn-primary'" :title="user.status === 'active' ? 'Tijdelijk Pauzeren / Blokkeren' : 'Deblokkeren'">
+                  {{ user.status === 'active' ? 'Pauzeren' : 'Hervatten' }}
+                </button>
                 <button @click="handleResetToken(user.id)" class="btn btn-secondary btn-sm" title="Reset Subscriptie Token">Reset Token</button>
                 <button @click="openEditModal(user)" class="btn btn-secondary btn-sm">Bewerken</button>
                 <button @click="handleDelete(user.id)" class="btn btn-danger btn-sm">Verwijderen</button>
@@ -279,6 +282,22 @@ async function handleFileImport(e: Event) {
   };
 
   reader.readAsText(file);
+}
+
+async function handleToggleBlock(user: VpnUser) {
+  const newStatus = user.status === 'active' ? 'disabled' : 'active';
+  const actionText = newStatus === 'disabled' ? 'pauzeren / tijdelijk blokkeren' : 'deblokkeren';
+  
+  if (confirm(`Weet je zeker dat je gebruiker "${user.username}" wilt ${actionText}?`)) {
+    try {
+      await userStore.updateUser(user.id, { status: newStatus });
+      toastSuccess.value = true;
+      toastMessage.value = `Gebruiker "${user.username}" is nu ${newStatus === 'disabled' ? 'gepauzeerd (VPN geblokkeerd)' : 'weer actief (VPN gedeblokkeerd)'}!`;
+    } catch (err: any) {
+      toastSuccess.value = false;
+      toastMessage.value = err.response?.data?.error || 'Status wijzigen mislukt.';
+    }
+  }
 }
 
 function openAddModal() {
