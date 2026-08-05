@@ -94,9 +94,8 @@ export class SystemService {
   }
 
   static getUpdateStatus(): UpdateProgress {
-    // If update is running, check update log file for step progress
     const logPath = '/var/log/amnion-update.log';
-    if (currentUpdateProgress.active && fs.existsSync(logPath)) {
+    if (fs.existsSync(logPath)) {
       try {
         const logContent = fs.readFileSync(logPath, 'utf-8');
         if (logContent.includes('[1/5]')) {
@@ -128,7 +127,7 @@ export class SystemService {
           currentUpdateProgress.active = false;
           currentUpdateProgress.step = 5;
           currentUpdateProgress.progressPercent = 100;
-          currentUpdateProgress.message = 'Update succesvol afgerond! VPN en dashboard zijn 100% operationeel.';
+          currentUpdateProgress.message = '🎉 Update succesvol voltooid! Amnion 2.0 is nu bijgewerkt naar de nieuwste versie.';
           currentUpdateProgress.completedAt = new Date().toISOString();
         } else if (logContent.includes('[ERROR]') || logContent.includes('Rollback succesvol')) {
           currentUpdateProgress.active = false;
@@ -141,8 +140,43 @@ export class SystemService {
     return currentUpdateProgress;
   }
 
+  static async checkForUpdates(): Promise<{ updateAvailable: boolean; currentVersion: string; latestVersion: string; message: string }> {
+    const currentVersion = 'v2.0.41';
+    try {
+      const res = await fetch('https://api.github.com/repos/vincedevriesdev/project-amnion2.0/commits/main', {
+        headers: { 'User-Agent': 'Amnion-Update-Checker' }
+      });
+      if (res.ok) {
+        const data = await res.json() as any;
+        const remoteSha = data.sha ? data.sha.slice(0, 7) : 'latest';
+        const commitMsg = data.commit?.message?.split('\n')[0] || '';
+
+        let localSha = '';
+        try {
+          const { stdout } = await execAsync('git rev-parse --short HEAD');
+          localSha = stdout.trim();
+        } catch {}
+
+        if (localSha && remoteSha && localSha !== remoteSha) {
+          return {
+            updateAvailable: true,
+            currentVersion,
+            latestVersion: `Commit ${remoteSha}`,
+            message: `🚀 Nieuwe update beschikbaar op GitHub (${remoteSha}: "${commitMsg}")!`
+          };
+        }
+      }
+    } catch {}
+
+    return {
+      updateAvailable: false,
+      currentVersion,
+      latestVersion: currentVersion,
+      message: `✅ Je draait al op de nieuwste versie van Amnion (${currentVersion}).`
+    };
+  }
+
   static async triggerUpdate(): Promise<{ success: boolean; message: string }> {
-    // Reset stale active lock if older than 5 minutes
     if (currentUpdateProgress.active && currentUpdateProgress.startTime) {
       const elapsedMs = Date.now() - new Date(currentUpdateProgress.startTime).getTime();
       if (elapsedMs > 5 * 60 * 1000) {

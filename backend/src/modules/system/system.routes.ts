@@ -11,6 +11,10 @@ export async function systemRoutes(fastify: FastifyInstance) {
     }
   });
 
+  fastify.get('/check-updates', async () => {
+    return SystemService.checkForUpdates();
+  });
+
   fastify.post('/reload-singbox', async (request: FastifyRequest, reply: FastifyReply) => {
     const result = await SystemService.syncAndReloadSingBox();
     if (!result.success) {

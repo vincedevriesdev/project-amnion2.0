@@ -14,7 +14,7 @@ export interface UpdateProgress {
 
 export const useSystemStore = defineStore('system', () => {
   const stats = ref<any>({
-    version: 'v2.0.0',
+    version: 'v2.0.41',
     serverStatus: 'online',
     services: { singBox: 'active', backend: 'active' },
     memory: { totalBytes: 0, usedBytes: 0, freeBytes: 0, usagePercentage: 0 },
@@ -75,6 +75,11 @@ export const useSystemStore = defineStore('system', () => {
     }
   }
 
+  async function checkUpdates() {
+    const res = await api.get('/system/check-updates');
+    return res.data;
+  }
+
   async function fetchUpdateStatus() {
     try {
       const res = await api.get('/system/update-status');
@@ -111,6 +116,7 @@ export const useSystemStore = defineStore('system', () => {
     fetchStats,
     fetchLogs,
     fetchRealityInfo,
+    checkUpdates,
     fetchUpdateStatus,
     reloadSingBox,
     triggerUpdate,
