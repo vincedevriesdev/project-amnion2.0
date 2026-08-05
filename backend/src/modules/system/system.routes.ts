@@ -24,7 +24,14 @@ export async function systemRoutes(fastify: FastifyInstance) {
     return { status: 'ok', message: result.message };
   });
 
-  fastify.get('/update-status', async () => {
+  fastify.get('/update-status', {
+    config: {
+      rateLimit: {
+        max: 60,
+        timeWindow: '1 minute'
+      }
+    }
+  }, async () => {
     return SystemService.getUpdateStatus();
   });
 
@@ -36,7 +43,14 @@ export async function systemRoutes(fastify: FastifyInstance) {
     return { status: 'ok', message: result.message };
   });
 
-  fastify.get('/reality-info', async () => {
+  fastify.get('/reality-info', {
+    config: {
+      rateLimit: {
+        max: 60,
+        timeWindow: '1 minute'
+      }
+    }
+  }, async () => {
     return SystemService.getRealityDetails();
   });
 
