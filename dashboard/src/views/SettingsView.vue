@@ -6,8 +6,8 @@
         <p class="page-subtitle">Beheer admin authenticatie, REALITY sleutels en updates</p>
       </div>
 
-      <span class="badge badge-purple" style="font-size: 13px; padding: 8px 16px;">
-        Project Amnion {{ systemStore.stats.version || 'v2.0.53' }}
+      <span v-if="systemStore.stats.version" class="badge badge-purple" style="font-size: 13px; padding: 8px 16px;">
+        Project Amnion {{ systemStore.stats.version }}
       </span>
     </div>
 

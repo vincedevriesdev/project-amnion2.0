@@ -49,7 +49,7 @@ export class SystemService {
         }
       } catch {}
     }
-    return 'v2.0.54';
+    return 'v2.0.55';
   }
 
   /**
