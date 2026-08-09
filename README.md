@@ -1,9 +1,15 @@
 # Project Amnion 2.0
 
+[![Status: BETA](https://img.shields.io/badge/Status-BETA-yellow.svg)](https://github.com/vincedevriesdev/project-amnion2.0)
 [![License: GPL v3](https://img.shields.io/badge/License-GPL%20v3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Platform: Ubuntu](https://img.shields.io/badge/Platform-Ubuntu%2020.04%20%7C%2022.04%20%7C%2024.04-orange.svg)](https://ubuntu.com)
 [![Engine: sing-box](https://img.shields.io/badge/Engine-sing--box-blue.svg)](https://sing-box.sagernet.org/)
 [![Client: Hiddify Next](https://img.shields.io/badge/Client-Hiddify%20Next-green.svg)](https://hiddify.com/)
+
+> [!WARNING]
+> ### ⚠️ Project Amnion 2.0 is momenteel in BETA
+> **Let op:** Project Amnion 2.0 is in actieve ontwikkeling en bevindt zich momenteel in de **BETA-fase**. 
+> Hoewel de VPN-protocollen (Hysteria 2, TUIC v5, VLESS REALITY) en het beheerdashboard uitvoerig zijn getest, kunnen er tijdens de bètafase nog updates, interface-wijzigingen en uitbreidingen plaatsvinden. Feedback en bug reports zijn van harte welkom via GitHub Issues!
 
 ---
 
