@@ -44,7 +44,7 @@ Project Amnion 2.0 gebruikt **sing-box** om drie moderne protocollen te onderste
   - REALITY omzeilt de noodzaak voor een eigen TLS-certificaat door het TLS-handshakeverkeer te vermommen als regulier HTTPS-verkeer naar een legitieme externe website (bijv. `dl.google.com`, `www.microsoft.com` of `icloud.com`).
   - Een DPI-firewall ziet alleen een normale, beveiligde HTTPS-sessie naar een vertrouwde domeinnaam.
 - **Voor- & Nadelen**:
-  - ✅ Onzichtbaar voor geavanceerde DPI-firewalls.
+  - ✅ Biedt uitstekende camouflage en weerstand tegen geavanceerde DPI-firewalls.
   - ✅ Geen eigen domeinnaam of TLS-certificaat vereist voor dit specifieke protocol.
   - ✅ Werkt op traditioneel TCP (vrijwel nooit geblokkeerd door ISP's).
   - ❌ Iets complexere configuratie (vereist EC25519 keypair generation & SNI selectie).

@@ -11,7 +11,7 @@
 
 **Project Amnion 2.0** is een krachtig, modern en privacygericht **self-hosted VPN-beheerplatform** ontworpen voor Ubuntu Linux-servers. 
 
-Het is speciaal gebouwd om individuen en organisaties te voorzien van een eigen, onafhankelijke VPN-infrastructuur die **100% bestand is tegen censuur, Deep Packet Inspection (DPI) en netwerkblokkades**. Amnion 2.0 combineert de razendsnelle Go-gebaseerde **sing-box** VPN-engine met een schitterend Glassmorphism webdashboard (Vue 3 + Vite + Fastify TypeScript) en een volledig geautomatiseerde 1-line installer en live update-engine.
+Het is speciaal gebouwd om individuen en organisaties te voorzien van een eigen, onafhankelijke VPN-infrastructuur die **ontworpen is om maximale weerstand te bieden aan censuur, Deep Packet Inspection (DPI) en netwerkblokkades**. Amnion 2.0 combineert de razendsnelle Go-gebaseerde **sing-box** VPN-engine met een schitterend Glassmorphism webdashboard (Vue 3 + Vite + Fastify TypeScript) en een volledig geautomatiseerde 1-line installer en live update-engine.
 
 > [!NOTE]
 > ### 💡 Geïnspireerd door AmneziaVPN
