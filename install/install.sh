@@ -160,12 +160,14 @@ EOF
 systemctl restart systemd-journald
 
 # 12. Firewall Configuration (UFW)
-echo -e "${YELLOW}[6/7] Firewall regels instellen (UFW)...${NC}"
+echo -e "${YELLOW}[6/7] Firewall regels instellen & UFW inschakelen...${NC}"
+ufw allow 22/tcp || true
 ufw allow 80/tcp || true
 ufw allow 443/tcp || true
 ufw allow 8443/udp || true
 ufw allow 8444/udp || true
 ufw allow 3000/tcp || true
+ufw --force enable || true
 
 # 13. Systemd Services Setup
 echo -e "${YELLOW}[7/7] Systemd services registreren en starten...${NC}"
