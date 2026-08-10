@@ -4,7 +4,6 @@
       <AmnionLogo :size="38" />
       <div>
         <div class="brand-title">AMNION <span>2.0</span></div>
-        <div class="brand-subtitle">Self-Hosted VPN Engine</div>
       </div>
     </router-link>
 
