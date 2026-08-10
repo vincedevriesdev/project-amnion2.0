@@ -50,14 +50,14 @@ export class SubscriptionsService {
         const tuic = `tuic://${user.uuid}:${user.uuid}@${host}:8444?congestion_control=bbr&allow_insecure=1&insecure=1&sni=${sniDomain}#⚡ TUIC v5 (Lage Latency) - ${user.username}`;
         uris.push(tuic);
       } else if (p.protocol_type === 'vless_reality') {
-        const vless = `vless://${user.uuid}@${host}:443?type=tcp&security=reality&pbk=${pubKeyStr}&fp=chrome&sni=www.microsoft.com&sid=${shortIdStr}&flow=xtls-rprx-vision#🛡️ VLESS REALITY (Camouflage) - ${user.username}`;
+        const vless = `vless://${user.uuid}@${host}:443?encryption=none&type=tcp&security=reality&pbk=${pubKeyStr}&fp=chrome&sni=www.microsoft.com&sid=${shortIdStr}&flow=xtls-rprx-vision#🛡️ VLESS REALITY (Camouflage) - ${user.username}`;
         uris.push(vless);
       }
     }
 
     if (uris.length === 0) {
       uris.push(`hysteria2://${user.uuid}@${host}:8443?insecure=1&sni=${sniDomain}#🚀 HY2 (Mobiel) - ${user.username}`);
-      uris.push(`vless://${user.uuid}@${host}:443?type=tcp&security=reality&pbk=${pubKeyStr}&fp=chrome&sni=www.microsoft.com&sid=${shortIdStr}&flow=xtls-rprx-vision#🛡️ VLESS REALITY (Camouflage) - ${user.username}`);
+      uris.push(`vless://${user.uuid}@${host}:443?encryption=none&type=tcp&security=reality&pbk=${pubKeyStr}&fp=chrome&sni=www.microsoft.com&sid=${shortIdStr}&flow=xtls-rprx-vision#🛡️ VLESS REALITY (Camouflage) - ${user.username}`);
     }
 
     const plainTextConfig = uris.join('\n');
