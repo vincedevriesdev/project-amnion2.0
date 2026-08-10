@@ -116,15 +116,15 @@ export class ProtocolsService {
         users: vlessUsers,
         tls: {
           enabled: true,
-          server_name: 'www.microsoft.com',
+          server_name: 'dl.google.com',
           reality: {
             enabled: true,
             handshake: {
-              server: 'www.microsoft.com',
+              server: 'dl.google.com',
               server_port: 443
             },
             private_key: realityPrivKey ? realityPrivKey.value : '',
-            short_id: realityShortId ? [realityShortId.value, ''] : ['']
+            short_id: realityShortId ? [realityShortId.value] : ['c098e249']
           }
         }
       }
