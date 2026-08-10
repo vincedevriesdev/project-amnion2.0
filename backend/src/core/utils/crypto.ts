@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { execSync } from 'child_process';
 import { v4 as uuidv4 } from 'uuid';
 
 export function generateUUID(): string {
@@ -14,20 +15,32 @@ export function generateShortId(length: number = 8): string {
 }
 
 /**
- * Generate Curve25519 Keypair for VLESS REALITY
+ * Generate 100% valid Curve25519 Keypair for VLESS REALITY using sing-box CLI or Node JWK export
  */
 export function generateRealityKeyPair(): { publicKey: string; privateKey: string } {
-  const { publicKey, privateKey } = crypto.generateKeyPairSync('x25519', {
-    publicKeyEncoding: { type: 'spki', format: 'der' },
-    privateKeyEncoding: { type: 'pkcs8', format: 'der' },
-  });
+  try {
+    const stdout = execSync('sing-box generate reality-keypair', { encoding: 'utf-8' });
+    const privMatch = stdout.match(/PrivateKey:\s*([A-Za-z0-9_-]+)/i);
+    const pubMatch = stdout.match(/PublicKey:\s*([A-Za-z0-9_-]+)/i);
+    if (privMatch && pubMatch) {
+      return {
+        privateKey: privMatch[1].trim(),
+        publicKey: pubMatch[1].trim()
+      };
+    }
+  } catch {}
 
-  // Extract raw 32 bytes from DER structures for sing-box compatibility
-  const pubRaw = publicKey.subarray(publicKey.length - 32).toString('base64url');
-  const privRaw = privateKey.subarray(privateKey.length - 32).toString('base64url');
+  // Native Node.js fallback using JWK export (guarantees exact matching X25519 32-byte raw keys)
+  const { publicKey, privateKey } = crypto.generateKeyPairSync('x25519');
+  const privJwk = privateKey.export({ format: 'jwk' });
+  const pubJwk = publicKey.export({ format: 'jwk' });
 
-  return {
-    publicKey: pubRaw,
-    privateKey: privRaw,
-  };
+  if (privJwk.d && pubJwk.x) {
+    return {
+      privateKey: privJwk.d,
+      publicKey: pubJwk.x
+    };
+  }
+
+  throw new Error('Failed to generate REALITY keypair');
 }
