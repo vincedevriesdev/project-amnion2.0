@@ -65,23 +65,32 @@ function updateNetworkSpeeds() {
                 db.prepare("UPDATE users SET used_bytes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(newUsed, u.id);
               }
             }
-            // Attribute protocol data traffic in database
-            let activeProto = 'vless_reality';
+            // Attribute protocol data traffic in database ONLY when active VPN proxying is detected
+            let activeProto: string | null = null;
             try {
               let logLines: string[] = [];
-              const logFile = '/var/log/sing-box/sing-box.log';
-              if (fs.existsSync(logFile)) {
-                logLines = fs.readFileSync(logFile, 'utf-8').trim().split('\n').slice(-20);
+              try {
+                const stdout = execSync('journalctl -u sing-box -n 20 --no-pager', { encoding: 'utf-8', timeout: 500 });
+                logLines = stdout.trim().split('\n');
+              } catch {
+                const logFile = '/var/log/sing-box/sing-box.log';
+                if (fs.existsSync(logFile)) {
+                  logLines = fs.readFileSync(logFile, 'utf-8').trim().split('\n').slice(-20);
+                }
               }
               for (let i = logLines.length - 1; i >= 0; i--) {
                 const l = logLines[i];
-                if (l.includes('inbound/hy2') || l.includes('inbound/hysteria2')) { activeProto = 'hysteria2'; break; }
-                if (l.includes('inbound/tuic')) { activeProto = 'tuic'; break; }
-                if (l.includes('inbound/vless')) { activeProto = 'vless_reality'; break; }
+                if (l.includes('outbound/direct') || l.includes('inbound connection to')) {
+                  if (l.includes('inbound/hy2') || l.includes('inbound/hysteria2')) { activeProto = 'hysteria2'; break; }
+                  if (l.includes('inbound/tuic')) { activeProto = 'tuic'; break; }
+                  if (l.includes('inbound/vless')) { activeProto = 'vless_reality'; break; }
+                }
               }
             } catch {}
 
-            db.prepare('UPDATE user_protocols SET used_bytes = used_bytes + ? WHERE protocol_type = ?').run(deltaTotal, activeProto);
+            if (activeProto) {
+              db.prepare('UPDATE user_protocols SET used_bytes = used_bytes + ? WHERE protocol_type = ?').run(deltaTotal, activeProto);
+            }
           }
         } catch (dbErr) {
           console.error('Error updating user traffic stats:', dbErr);
