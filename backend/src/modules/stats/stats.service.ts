@@ -65,6 +65,23 @@ function updateNetworkSpeeds() {
                 db.prepare("UPDATE users SET used_bytes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(newUsed, u.id);
               }
             }
+            // Attribute protocol data traffic in database
+            let activeProto = 'vless_reality';
+            try {
+              let logLines: string[] = [];
+              const logFile = '/var/log/sing-box/sing-box.log';
+              if (fs.existsSync(logFile)) {
+                logLines = fs.readFileSync(logFile, 'utf-8').trim().split('\n').slice(-20);
+              }
+              for (let i = logLines.length - 1; i >= 0; i--) {
+                const l = logLines[i];
+                if (l.includes('inbound/hy2') || l.includes('inbound/hysteria2')) { activeProto = 'hysteria2'; break; }
+                if (l.includes('inbound/tuic')) { activeProto = 'tuic'; break; }
+                if (l.includes('inbound/vless')) { activeProto = 'vless_reality'; break; }
+              }
+            } catch {}
+
+            db.prepare('UPDATE user_protocols SET used_bytes = used_bytes + ? WHERE protocol_type = ?').run(deltaTotal, activeProto);
           }
         } catch (dbErr) {
           console.error('Error updating user traffic stats:', dbErr);
@@ -131,76 +148,28 @@ export class StatsService {
       LIMIT 5
     `).all() as any[];
 
-    // Protocol distribution based on smart NAT port clustering
-    const protocolCountsMap: Record<string, number> = {
+    // Protocol distribution based on total cumulative byte volume
+    const protocolTraffic = db.prepare(`
+      SELECT protocol_type, SUM(used_bytes) as total_bytes
+      FROM user_protocols
+      GROUP BY protocol_type
+    `).all() as any[];
+
+    const protocolMap: Record<string, number> = {
       hysteria2: 0,
       tuic: 0,
       vless_reality: 0
     };
 
-    try {
-      let logLines: string[] = [];
-      try {
-        const stdout = execSync('journalctl -u sing-box -n 250 --no-pager', { encoding: 'utf-8', timeout: 1000 });
-        logLines = stdout.trim().split('\n');
-      } catch {
-        const logFile = '/var/log/sing-box/sing-box.log';
-        if (fs.existsSync(logFile)) {
-          logLines = fs.readFileSync(logFile, 'utf-8').trim().split('\n').slice(-250);
-        }
-      }
+    let mostUsedProtocol = 'Geen dataverkeer';
+    let maxBytes = -1;
 
-      // Group ports by client IP and protocol
-      const ipPortMap: Record<string, number[]> = {};
-
-      for (const line of logLines) {
-        const match = line.match(/inbound connection from\s+\[?(?:::ffff:)?([0-9a-fA-F.:]+)\]?:([0-9]+)/);
-        if (match) {
-          const clientIp = match[1];
-          const port = parseInt(match[2], 10);
-          let protoKey = 'vless_reality';
-          if (line.includes('inbound/hy2') || line.includes('inbound/hysteria2')) {
-            protoKey = 'hysteria2';
-          } else if (line.includes('inbound/tuic')) {
-            protoKey = 'tuic';
-          }
-
-          const mapKey = `${protoKey}:${clientIp}`;
-          if (!ipPortMap[mapKey]) ipPortMap[mapKey] = [];
-          ipPortMap[mapKey].push(port);
-        }
-      }
-
-      // Cluster sequential ports to identify distinct physical devices behind the same NAT IP
-      for (const [mapKey, ports] of Object.entries(ipPortMap)) {
-        const protoKey = mapKey.split(':')[0];
-        ports.sort((a, b) => a - b);
-        let distinctDevices = 1;
-        for (let i = 1; i < ports.length; i++) {
-          // A port gap > 100 indicates a separate client device on a shared (school/office) NAT network
-          if (ports[i] - ports[i - 1] > 100) {
-            distinctDevices++;
-          }
-        }
-        if (protoKey in protocolCountsMap) {
-          protocolCountsMap[protoKey] += distinctDevices;
-        }
-      }
-    } catch {}
-
-    const protocolMap: Record<string, number> = {
-      hysteria2: protocolCountsMap.hysteria2,
-      tuic: protocolCountsMap.tuic,
-      vless_reality: protocolCountsMap.vless_reality
-    };
-
-    let mostUsedProtocol = 'Geen actieve verbindingen';
-    let maxProtoCount = 0;
-
-    for (const [pType, pCount] of Object.entries(protocolMap)) {
-      if (pCount > maxProtoCount) {
-        maxProtoCount = pCount;
-        mostUsedProtocol = pType === 'vless_reality' ? 'VLESS REALITY' : pType === 'hysteria2' ? 'Hysteria 2' : 'TUIC v5';
+    for (const row of protocolTraffic) {
+      const bytes = row.total_bytes || 0;
+      protocolMap[row.protocol_type] = bytes;
+      if (bytes > maxBytes && bytes > 0) {
+        maxBytes = bytes;
+        mostUsedProtocol = row.protocol_type === 'vless_reality' ? 'VLESS REALITY' : row.protocol_type === 'hysteria2' ? 'Hysteria 2' : 'TUIC v5';
       }
     }
 

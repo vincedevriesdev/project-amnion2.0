@@ -69,7 +69,7 @@
       <!-- Protocol Distribution Chart -->
       <div class="glass-card">
         <h3 class="text-xl font-extrabold text-white mb-4">
-          📊 Protocol Verdeling
+          📊 Protocol Dataverkeer
         </h3>
         
         <DataUsageChart
@@ -96,7 +96,7 @@
                 {{ key === 'hysteria2' ? 'Hysteria 2' : key === 'tuic' ? 'TUIC v5' : 'VLESS REALITY' }}
               </span>
             </div>
-            <span class="font-mono text-slate-300">{{ proto }} Clients</span>
+            <span class="font-mono text-slate-300">{{ formatBytes(proto || 0) }}</span>
           </div>
         </div>
       </div>

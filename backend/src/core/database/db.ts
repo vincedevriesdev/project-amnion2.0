@@ -86,4 +86,9 @@ export function initDatabase() {
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
   `);
+
+  // Migration for used_bytes in user_protocols
+  try {
+    db.exec('ALTER TABLE user_protocols ADD COLUMN used_bytes INTEGER DEFAULT 0');
+  } catch {}
 }
