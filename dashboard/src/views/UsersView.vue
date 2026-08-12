@@ -1,138 +1,245 @@
 <template>
-  <div>
+  <div class="space-y-6">
+    <!-- Page Header -->
     <div class="page-header">
       <div>
         <h1 class="page-title">Gebruikersbeheer</h1>
-        <p class="page-subtitle">Beheer VPN-gebruikers, Hiddify-configuraties en actieve protocollen</p>
+        <p class="page-subtitle">Beheer VPN-gebruikers, protocollen en abonnementen</p>
       </div>
-
-      <div style="display: flex; gap: 12px; align-items: center;">
-        <button @click="handleExportJSON" class="btn btn-secondary">
-          <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-          Exporteer JSON
+      
+      <div class="flex items-center gap-3 flex-wrap">
+        <!-- Search -->
+        <div class="relative">
+          <SearchIcon class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+          <input
+            v-model="searchQuery"
+            placeholder="Zoek gebruikers..."
+            class="glass-input pl-10 w-48 md:w-64"
+          />
+        </div>
+        
+        <!-- Status Filter -->
+        <select v-model="statusFilter" class="glass-input w-32">
+          <option value="">Alle status</option>
+          <option value="active">Actief</option>
+          <option value="disabled">Gepauzeerd</option>
+        </select>
+        
+        <!-- Bulk Actions (Desktop) -->
+        <div v-if="selectedUsers.length > 0" class="hidden md:flex items-center gap-2">
+          <span class="text-sm text-slate-400">
+            {{ selectedUsers.length }} geselecteerd
+          </span>
+          <button
+            @click="bulkToggleStatus"
+            class="glass-btn glass-btn-secondary text-sm"
+          >
+            {{ selectedUsers.every(id => users.find(u => u.id === id)?.status === 'active') ? 'Bulk Pauzeren' : 'Bulk Hervatten' }}
+          </button>
+          <button
+            @click="bulkDelete"
+            class="glass-btn glass-btn-danger text-sm"
+          >
+            Bulk Verwijderen
+          </button>
+        </div>
+        
+        <!-- Export/Import -->
+        <button @click="handleExportCSV" class="glass-btn glass-btn-secondary" data-tooltip="Exporteer CSV">
+          <DownloadIcon class="w-4 h-4" />
+          <span class="hidden md:inline">CSV</span>
         </button>
-
-        <button @click="triggerFileInput" class="btn btn-secondary">
-          <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-          Importeer JSON
+        
+        <button @click="triggerFileInput" class="glass-btn glass-btn-secondary" data-tooltip="Importeer JSON">
+          <UploadIcon class="w-4 h-4" />
+          <span class="hidden md:inline">JSON</span>
         </button>
-        <input ref="fileInput" type="file" accept=".json" style="display: none;" @change="handleFileImport" />
-
-        <button @click="openAddModal" class="btn btn-primary">
-          <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-          Nieuwe Gebruiker
+        <input
+          ref="fileInput"
+          type="file"
+          accept=".json"
+          style="display: none;"
+          @change="handleFileImport"
+        />
+        
+        <!-- Add User Button -->
+        <button @click="openAddModal" class="glass-btn glass-btn-primary">
+          <PlusIcon class="w-4 h-4" />
+          <span>Nieuwe Gebruiker</span>
         </button>
       </div>
     </div>
 
-    <!-- Alert Toast -->
-    <div v-if="toastMessage" style="margin-bottom: 24px; padding: 16px; border-radius: 14px; font-size: 14px; font-weight: 500;" :style="toastSuccess ? 'background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); color: #34d399;' : 'background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5;'">
-      {{ toastMessage }}
+    <!-- Bulk Actions (Mobile) -->
+    <div v-if="selectedUsers.length > 0" class="md:hidden flex items-center gap-2 p-3 bg-slate-800/50 rounded-xl">
+      <span class="text-sm text-slate-400">
+        {{ selectedUsers.length }} geselecteerd
+      </span>
+      <button @click="clearSelection" class="text-sm text-slate-400 hover:text-white">
+        Deselecteren
+      </button>
+      <div class="flex-1"></div>
+      <button @click="bulkToggleStatus" class="glass-btn glass-btn-secondary text-xs">
+        {{ selectedUsers.every(id => users.find(u => u.id === id)?.status === 'active') ? 'Pauzeren' : 'Hervatten' }}
+      </button>
+      <button @click="bulkDelete" class="glass-btn glass-btn-danger text-xs">
+        Verwijderen
+      </button>
     </div>
 
-    <!-- User Statistics Summary Cards -->
-    <div class="grid-3" style="margin-bottom: 32px;">
+    <!-- User Statistics Cards -->
+    <div class="grid-3">
       <div class="glass-card">
-        <div class="flex-between" style="margin-bottom: 8px;">
-          <span class="form-label" style="margin-bottom: 0;">Totaal Gebruikers</span>
+        <div class="flex-between mb-2">
+          <span class="form-label mb-0">Totaal Gebruikers</span>
           <span class="badge badge-emerald">Actief</span>
         </div>
-        <div style="font-size: 28px; font-weight: 800; color: #fff;">{{ userStore.users.length }}</div>
-        <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Geregistreerde VPN accounts</div>
+        <div class="text-3xl font-extrabold text-white">{{ users.length }}</div>
+        <div class="text-xs text-slate-400 mt-1">Geregistreerde VPN accounts</div>
       </div>
 
       <div class="glass-card">
-        <div class="flex-between" style="margin-bottom: 8px;">
-          <span class="form-label" style="margin-bottom: 0;">Totaal Dataverbruik</span>
-          <span class="font-mono text-cyan" style="font-weight: 700;">Cumulatief</span>
+        <div class="flex-between mb-2">
+          <span class="form-label mb-0">Totaal Dataverbruik</span>
+          <span class="font-mono text-cyan-500 font-bold">Cumulatief</span>
         </div>
-        <div style="font-size: 28px; font-weight: 800; color: #fff;">{{ formatBytes(totalUsedBytes) }}</div>
-        <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Verbruikt door alle VPN clients</div>
+        <div class="text-3xl font-extrabold text-white">{{ formatBytes(totalUsedBytes) }}</div>
+        <div class="text-xs text-slate-400 mt-1">Verbruikt door alle clients</div>
       </div>
 
       <div class="glass-card">
-        <div class="flex-between" style="margin-bottom: 8px;">
-          <span class="form-label" style="margin-bottom: 0;">Actieve Protocollen</span>
+        <div class="flex-between mb-2">
+          <span class="form-label mb-0">Actieve Protocollen</span>
           <span class="badge badge-purple">Multi-Engine</span>
         </div>
-        <div style="font-size: 28px; font-weight: 800; color: #fff;">3 Protocollen</div>
-        <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Hysteria2, TUIC v5, VLESS REALITY</div>
+        <div class="text-3xl font-extrabold text-white">3 Protocollen</div>
+        <div class="text-xs text-slate-400 mt-1">Hysteria2, TUIC v5, VLESS</div>
       </div>
     </div>
 
-    <!-- Users Data Table -->
+    <!-- Users Table -->
     <div class="table-wrapper">
       <table class="data-table">
         <thead>
           <tr>
-            <th>Gebruiker</th>
-            <th>Status</th>
-            <th>Dataverbruik</th>
-            <th>Actieve Protocollen & Status</th>
-            <th>Hiddify Subscriptie</th>
-            <th style="text-align: right;">Acties</th>
+            <th class="w-12">
+              <input
+                type="checkbox"
+                @change="toggleSelectAll"
+                :checked="selectedUsers.length === filteredUsers.length && filteredUsers.length > 0"
+              />
+            </th>
+            <th @click="sortBy('username')" class="cursor-pointer select-none">
+              Gebruiker
+              <span v-if="sortKey === 'username'" class="sort-indicator">
+                {{ sortOrder === 'asc' ? '↑' : '↓' }}
+              </span>
+            </th>
+            <th @click="sortBy('status')" class="cursor-pointer select-none">
+              Status
+              <span v-if="sortKey === 'status'" class="sort-indicator">
+                {{ sortOrder === 'asc' ? '↑' : '↓' }}
+              </span>
+            </th>
+            <th @click="sortBy('used_bytes')" class="cursor-pointer select-none">
+              Dataverbruik
+              <span v-if="sortKey === 'used_bytes'" class="sort-indicator">
+                {{ sortOrder === 'asc' ? '↑' : '↓' }}
+              </span>
+            </th>
+            <th>Protocollen</th>
+            <th>Hiddify Config</th>
+            <th class="text-right">Acties</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="user in userStore.users" :key="user.id">
-            <!-- Username & UUID -->
+          <tr v-for="user in paginatedUsers" :key="user.id">
             <td>
-              <div style="font-weight: 700; color: #fff; font-size: 15px;">{{ user.username }}</div>
-              <div class="font-mono" style="font-size: 11px; color: var(--text-dim); margin-top: 2px;">{{ user.uuid }}</div>
+              <input
+                type="checkbox"
+                v-model="selectedUsers"
+                :value="user.id"
+              />
             </td>
-
-            <!-- Status -->
             <td>
-              <span class="badge" :class="user.status === 'active' ? 'badge-emerald' : 'badge-red'">
-                {{ user.status === 'active' ? 'Actief' : (user.status === 'disabled' ? 'Gepauzeerd' : user.status) }}
+              <div class="font-bold text-white">{{ user.username }}</div>
+              <div class="font-mono text-xs text-slate-400 truncate max-w-xs">{{ user.uuid }}</div>
+            </td>
+            <td>
+              <span
+                class="badge"
+                :class="user.status === 'active' ? 'badge-emerald' : user.status === 'disabled' ? 'badge-amber' : 'badge-red'"
+              >
+                {{ user.status === 'active' ? 'Actief' : user.status === 'disabled' ? 'Gepauzeerd' : user.status }}
               </span>
             </td>
-
-            <!-- Data Limit / Usage -->
             <td>
-              <div class="font-mono" style="font-size: 13px; font-weight: 700; color: #fff;">
-                {{ formatBytes(user.used_bytes) }}
+              <div class="font-mono font-bold text-white">
+                {{ formatBytes(user.used_bytes || 0) }}
               </div>
-              <div style="font-size: 11px; color: var(--text-muted);">
+              <div class="text-xs text-slate-400">
                 {{ user.data_limit_bytes > 0 ? `Limiet: ${formatBytes(user.data_limit_bytes)}` : 'Onbeperkt' }}
               </div>
             </td>
-
-            <!-- Enabled Protocols & Active Badge -->
             <td>
-              <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                <span v-for="p in user.protocols" :key="p.protocol_type" v-show="p.is_enabled" class="badge" :class="getProtocolBadgeClass(p.protocol_type)">
+              <div class="flex items-center gap-1 flex-wrap">
+                <span
+                  v-for="p in user.protocols"
+                  :key="p.protocol_type"
+                  v-show="p.is_enabled"
+                  class="badge text-[10px] px-2 py-0.5"
+                  :class="getProtocolBadgeClass(p.protocol_type)"
+                >
                   {{ getProtocolLabel(p.protocol_type) }}
-                </span>
-                <span v-if="user.activeProtocol && user.status === 'active'" class="badge badge-emerald" style="font-size: 10px; padding: 4px 8px;">
-                  🟢 {{ user.activeProtocol }}
                 </span>
               </div>
             </td>
-
-            <!-- Hiddify Subscription QR & Link -->
             <td>
-              <button @click="openQrModal(user)" class="btn btn-secondary btn-sm" style="gap: 6px;">
-                <svg style="width: 16px; height: 16px; color: var(--emerald-primary);" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
-                QR & Sub Link
+              <button
+                @click="openQrModal(user)"
+                class="glass-btn glass-btn-secondary text-xs"
+                data-tooltip="QR Code & Sub Link"
+              >
+                <QrCodeIcon class="w-4 h-4" />
               </button>
             </td>
-
-            <!-- Actions -->
-            <td style="text-align: right;">
-              <div style="display: flex; align-items: center; justify-content: flex-end; gap: 8px;">
-                <button @click="handleToggleBlock(user)" class="btn btn-sm" :class="user.status === 'active' ? 'btn-danger' : 'btn-primary'" :title="user.status === 'active' ? 'Tijdelijk Pauzeren / Blokkeren' : 'Deblokkeren'">
+            <td class="text-right">
+              <div class="flex items-center justify-end gap-1">
+                <button
+                  @click="handleToggleBlock(user)"
+                  class="glass-btn text-xs"
+                  :class="user.status === 'active' ? 'glass-btn-danger' : 'glass-btn-primary'"
+                  :data-tooltip="user.status === 'active' ? 'Pauzeren' : 'Hervatten'"
+                >
                   {{ user.status === 'active' ? 'Pauzeren' : 'Hervatten' }}
                 </button>
-                <button @click="handleResetToken(user.id)" class="btn btn-secondary btn-sm" title="Reset Subscriptie Token">Reset Token</button>
-                <button @click="openEditModal(user)" class="btn btn-secondary btn-sm">Bewerken</button>
-                <button @click="handleDelete(user.id)" class="btn btn-danger btn-sm">Verwijderen</button>
+                <button
+                  @click="handleResetToken(user.id)"
+                  class="glass-btn glass-btn-secondary text-xs"
+                  data-tooltip="Reset Token"
+                >
+                  <RefreshIcon class="w-3 h-3" />
+                </button>
+                <button
+                  @click="openEditModal(user)"
+                  class="glass-btn glass-btn-secondary text-xs"
+                  data-tooltip="Bewerken"
+                >
+                  <PencilIcon class="w-3 h-3" />
+                </button>
+                <button
+                  @click="handleDelete(user.id)"
+                  class="glass-btn glass-btn-danger text-xs"
+                  data-tooltip="Verwijderen"
+                >
+                  <TrashIcon class="w-3 h-3" />
+                </button>
               </div>
             </td>
           </tr>
-
-          <tr v-if="userStore.users.length === 0">
-            <td colspan="6" style="text-align: center; padding: 40px; color: var(--text-dim);">
+          
+          <tr v-if="filteredUsers.length === 0">
+            <td colspan="7" class="text-center py-8 text-slate-400">
               Nog geen gebruikers aangemaakt. Klik op "Nieuwe Gebruiker" om te beginnen.
             </td>
           </tr>
@@ -140,114 +247,313 @@
       </table>
     </div>
 
-    <!-- Add/Edit User Modal -->
-    <div class="modal-backdrop" v-if="showModal" @click.self="closeModal">
-      <div class="modal-box">
-        <h3 style="font-size: 20px; font-weight: 800; color: #fff; margin-bottom: 20px;">
-          {{ isEditing ? 'Gebruiker Bewerken' : 'Nieuwe Gebruiker Toevoegen' }}
-        </h3>
-
-        <form @submit.prevent="saveUser">
-          <div class="form-group">
-            <label class="form-label">Gebruikersnaam</label>
-            <input type="text" v-model="form.username" required :disabled="isEditing" class="input-field" placeholder="bijv. vince-phone" />
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Datalimiet in GB (0 = Onbeperkt)</label>
-            <input type="number" v-model.number="form.dataLimitGb" min="0" class="input-field" placeholder="0" />
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Toegewezen Protocollen</label>
-            <div style="display: flex; flex-direction: column; gap: 10px;">
-              <label style="background: rgba(30, 41, 59, 0.6); padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border-glass); display: flex; align-items: center; gap: 12px; cursor: pointer;">
-                <input type="checkbox" value="hysteria2" v-model="form.protocols" style="width: 18px; height: 18px; accent-color: var(--emerald-primary);" />
-                <span style="font-size: 14px; font-weight: 600; color: #fff;">Hysteria 2 (UDP QUIC)</span>
-              </label>
-
-              <label style="background: rgba(30, 41, 59, 0.6); padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border-glass); display: flex; align-items: center; gap: 12px; cursor: pointer;">
-                <input type="checkbox" value="tuic" v-model="form.protocols" style="width: 18px; height: 18px; accent-color: var(--emerald-primary);" />
-                <span style="font-size: 14px; font-weight: 600; color: #fff;">TUIC v5 (UDP 0-RTT)</span>
-              </label>
-
-              <label style="background: rgba(30, 41, 59, 0.6); padding: 12px 16px; border-radius: 12px; border: 1px solid var(--border-glass); display: flex; align-items: center; gap: 12px; cursor: pointer;">
-                <input type="checkbox" value="vless_reality" v-model="form.protocols" style="width: 18px; height: 18px; accent-color: var(--emerald-primary);" />
-                <span style="font-size: 14px; font-weight: 600; color: #fff;">VLESS + REALITY (TCP TLS Camouflage)</span>
-              </label>
-            </div>
-          </div>
-
-          <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 28px;">
-            <button type="button" @click="closeModal" class="btn btn-secondary">Annuleren</button>
-            <button type="submit" :disabled="saving" class="btn btn-primary">
-              {{ saving ? 'Bezig met opslaan...' : (isEditing ? 'Opslaan' : 'Aanmaken & Genereer Config') }}
-            </button>
-          </div>
-        </form>
-      </div>
+    <!-- Pagination -->
+    <div v-if="filteredUsers.length > itemsPerPage" class="flex items-center justify-center gap-2">
+      <button
+        @click="prevPage"
+        :disabled="currentPage === 1"
+        class="glass-btn glass-btn-secondary disabled:opacity-50"
+      >
+        <ChevronLeftIcon class="w-5 h-5" />
+      </button>
+      <span class="px-4 py-2 bg-slate-800/50 rounded-xl text-sm">
+        Pagina {{ currentPage }} van {{ totalPages }}
+      </span>
+      <button
+        @click="nextPage"
+        :disabled="currentPage === totalPages"
+        class="glass-btn glass-btn-secondary disabled:opacity-50"
+      >
+        <ChevronRightIcon class="w-5 h-5" />
+      </button>
     </div>
 
-    <!-- QR Modal Component -->
-    <QrCodeModal :isOpen="showQrModal" :username="selectedUsername" :subToken="selectedSubToken" @close="showQrModal = false" />
+    <!-- Add/Edit User Modal -->
+    <transition name="fade">
+      <div v-if="showModal" class="modal-backdrop" @click.self="closeModal">
+        <div class="modal-box max-w-lg w-full" @click.stop>
+          <div class="flex-between mb-4">
+            <h3 class="text-xl font-extrabold text-white">
+              {{ isEditing ? 'Gebruiker Bewerken' : 'Nieuwe Gebruiker Toevoegen' }}
+            </h3>
+            <button @click="closeModal" class="text-slate-400 hover:text-white text-2xl">
+              ×
+            </button>
+          </div>
+
+          <form @submit.prevent="saveUser" class="space-y-4">
+            <div>
+              <label class="form-label">Gebruikersnaam</label>
+              <input
+                type="text"
+                v-model="form.username"
+                required
+                :disabled="isEditing"
+                class="glass-input w-full"
+                placeholder="bijv. vince-phone"
+                :class="{ 'border-red-500': usernameError }"
+                @blur="validateUsername"
+              />
+              <p v-if="usernameError" class="text-red-500 text-xs mt-1">{{ usernameError }}</p>
+            </div>
+
+            <div>
+              <label class="form-label">Datalimiet in GB (0 = Onbeperkt)</label>
+              <input
+                type="number"
+                v-model.number="form.dataLimitGb"
+                min="0"
+                class="glass-input w-full"
+                placeholder="0"
+              />
+            </div>
+
+            <div>
+              <label class="form-label">Toegewezen Protocollen</label>
+              <div class="space-y-2">
+                <label
+                  v-for="proto in protocolOptions"
+                  :key="proto.value"
+                  class="protocol-option"
+                >
+                  <input
+                    type="checkbox"
+                    :value="proto.value"
+                    v-model="form.protocols"
+                    class="w-5 h-5 accent-primary-500"
+                  />
+                  <span class="ml-3 text-white font-medium">{{ proto.label }}</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                @click="closeModal"
+                class="glass-btn glass-btn-secondary"
+              >
+                Annuleren
+              </button>
+              <button
+                type="submit"
+                :disabled="saving || usernameError"
+                class="glass-btn glass-btn-primary"
+              >
+                <span v-if="saving">Bezig met opslaan...</span>
+                <span v-else>
+                  {{ isEditing ? 'Opslaan' : 'Aanmaken & Genereer Config' }}
+                </span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </transition>
+
+    <!-- QR Modal -->
+    <QrCodeModal
+      :isOpen="showQrModal"
+      :username="selectedUsername"
+      :subToken="selectedSubToken"
+      @close="showQrModal = false"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { useUserStore, VpnUser } from '../stores/users';
+import { useUserStore } from '../stores/users';
+import { useToastStore } from '../stores/toast';
+import { useFormat } from '../composables/useFormat';
 import QrCodeModal from '../components/QrCodeModal.vue';
+import {
+  SearchIcon,
+  PlusIcon,
+  TrashIcon,
+  PencilIcon,
+  RefreshIcon,
+  DownloadIcon,
+  UploadIcon,
+  QrCodeIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+} from '../components/Icons';
 
 const userStore = useUserStore();
+const toastStore = useToastStore();
+const { formatBytes } = useFormat();
 
 const fileInput = ref<HTMLInputElement | null>(null);
 
+// Modal States
 const showModal = ref(false);
 const isEditing = ref(false);
 const saving = ref(false);
 const selectedUserId = ref('');
-
 const showQrModal = ref(false);
 const selectedUsername = ref('');
 const selectedSubToken = ref('');
 
-const toastMessage = ref('');
-const toastSuccess = ref(true);
-
+// Form State
 const form = ref({
   username: '',
   dataLimitGb: 0,
   protocols: ['hysteria2', 'tuic', 'vless_reality']
 });
 
+const usernameError = ref('');
+
+// Filter & Sort States
+const searchQuery = ref('');
+const statusFilter = ref('');
+const sortKey = ref<'username' | 'status' | 'used_bytes' | 'data_limit_bytes'>('username');
+const sortOrder = ref<'asc' | 'desc'>('asc');
+
+// Pagination States
+const currentPage = ref(1);
+const itemsPerPage = 10;
+
+// Selection States
+const selectedUsers = ref<string[]>([]);
+
+// Protocol Options
+const protocolOptions = [
+  { value: 'hysteria2', label: 'Hysteria 2 (UDP QUIC)' },
+  { value: 'tuic', label: 'TUIC v5 (UDP 0-RTT)' },
+  { value: 'vless_reality', label: 'VLESS + REALITY (TCP TLS)' },
+];
+
+// Computed Properties
+const users = computed(() => userStore.users);
+
+const filteredUsers = computed(() => {
+  return users.value
+    .filter(user => {
+      const matchesSearch = user.username.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+                           user.uuid.toLowerCase().includes(searchQuery.value.toLowerCase());
+      const matchesStatus = !statusFilter.value || user.status === statusFilter.value;
+      return matchesSearch && matchesStatus;
+    })
+    .sort((a, b) => {
+      let aVal: any, bVal: any;
+      
+      if (sortKey.value === 'username') {
+        aVal = a.username.toLowerCase();
+        bVal = b.username.toLowerCase();
+      } else if (sortKey.value === 'status') {
+        aVal = a.status;
+        bVal = b.status;
+      } else if (sortKey.value === 'used_bytes') {
+        aVal = a.used_bytes || 0;
+        bVal = b.used_bytes || 0;
+      } else {
+        aVal = a.data_limit_bytes || 0;
+        bVal = b.data_limit_bytes || 0;
+      }
+      
+      if (aVal < bVal) return sortOrder.value === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortOrder.value === 'asc' ? 1 : -1;
+      return 0;
+    });
+});
+
 const totalUsedBytes = computed(() => {
-  return userStore.users.reduce((acc, u) => acc + (u.used_bytes || 0), 0);
+  return users.value.reduce((acc, u) => acc + (u.used_bytes || 0), 0);
 });
 
-onMounted(() => {
-  userStore.fetchUsers();
+const totalPages = computed(() => Math.ceil(filteredUsers.value.length / itemsPerPage));
+
+const paginatedUsers = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage;
+  const end = start + itemsPerPage;
+  return filteredUsers.value.slice(start, end);
 });
 
+// Methods
 function triggerFileInput() {
   fileInput.value?.click();
 }
 
-async function handleExportJSON() {
+function validateUsername() {
+  if (!form.value.username) {
+    usernameError.value = 'Gebruikersnaam is verplicht';
+    return false;
+  }
+  if (form.value.username.includes(' ')) {
+    usernameError.value = 'Gebruikersnaam mag geen spaties bevatten';
+    return false;
+  }
+  if (form.value.username.length < 3) {
+    usernameError.value = 'Gebruikersnaam moet minimaal 3 tekens lang zijn';
+    return false;
+  }
+  usernameError.value = '';
+  return true;
+}
+
+function toggleSelectAll(e: Event) {
+  const isChecked = (e.target as HTMLInputElement).checked;
+  selectedUsers.value = isChecked ? filteredUsers.value.map(u => u.id) : [];
+}
+
+function clearSelection() {
+  selectedUsers.value = [];
+}
+
+function sortBy(key: typeof sortKey.value) {
+  if (sortKey.value === key) {
+    sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc';
+  } else {
+    sortKey.value = key;
+    sortOrder.value = 'asc';
+  }
+}
+
+function nextPage() {
+  if (currentPage.value < totalPages.value) {
+    currentPage.value++;
+  }
+}
+
+function prevPage() {
+  if (currentPage.value > 1) {
+    currentPage.value--;
+  }
+}
+
+async function handleExportCSV() {
   try {
     const data = await userStore.exportUsers();
-    const jsonStr = JSON.stringify(data, null, 2);
-    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const users = Array.isArray(data) ? data : (data.users || []);
+
+    const headers = ['ID', 'Gebruikersnaam', 'UUID', 'Status', 'Dataverbruik', 'Datalimiet', 'Protocollen'];
+    const rows = users.map(user => [
+      user.id,
+      user.username,
+      user.uuid,
+      user.status,
+      formatBytes(user.used_bytes || 0),
+      user.data_limit_bytes > 0 ? formatBytes(user.data_limit_bytes) : 'Onbeperkt',
+      user.protocols.filter(p => p.is_enabled).map(p => getProtocolLabel(p.protocol_type)).join(', ')
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(field => `"${field}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `amnion-users-export-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `amnion-users-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    toastSuccess.value = true;
-    toastMessage.value = 'Gebruikerslijst succesvol geëxporteerd als JSON!';
+
+    toastStore.addToast('Gebruikers succesvol geëxporteerd als CSV!', 'success');
   } catch (err: any) {
-    toastSuccess.value = false;
-    toastMessage.value = 'Exporteren mislukt.';
+    toastStore.addToast(err.response?.data?.error || 'Exporteren mislukt.', 'error');
   }
 }
 
@@ -265,17 +571,14 @@ async function handleFileImport(e: Event) {
       const userList = Array.isArray(parsed) ? parsed : (parsed.users || []);
 
       if (userList.length === 0) {
-        toastSuccess.value = false;
-        toastMessage.value = 'Geen geldige gebruikers gevonden in het geüploade bestand.';
+        toastStore.addToast('Geen geldige gebruikers gevonden in het bestand.', 'error');
         return;
       }
 
       const res = await userStore.importUsers(userList);
-      toastSuccess.value = true;
-      toastMessage.value = `🎉 Succesvol ${res.importedUsersCount} gebruiker(s) geïmporteerd & VPN gesynchroniseerd!`;
+      toastStore.addToast(`✨ Succesvol ${res.importedUsersCount} gebruiker(s) geïmporteerd!`, 'success');
     } catch (err: any) {
-      toastSuccess.value = false;
-      toastMessage.value = 'Importeren mislukt. Zorg dat het een geldig Amnion JSON bestand is.';
+      toastStore.addToast('Importeren mislukt. Zorg dat het een geldig Amnion JSON bestand is.', 'error');
     } finally {
       if (fileInput.value) fileInput.value.value = '';
     }
@@ -284,18 +587,19 @@ async function handleFileImport(e: Event) {
   reader.readAsText(file);
 }
 
-async function handleToggleBlock(user: VpnUser) {
+async function handleToggleBlock(user: any) {
   const newStatus = user.status === 'active' ? 'disabled' : 'active';
-  const actionText = newStatus === 'disabled' ? 'pauzeren / tijdelijk blokkeren' : 'deblokkeren';
+  const actionText = newStatus === 'disabled' ? 'pauzeren' : 'deblokkeren';
   
   if (confirm(`Weet je zeker dat je gebruiker "${user.username}" wilt ${actionText}?`)) {
     try {
       await userStore.updateUser(user.id, { status: newStatus });
-      toastSuccess.value = true;
-      toastMessage.value = `Gebruiker "${user.username}" is nu ${newStatus === 'disabled' ? 'gepauzeerd (VPN geblokkeerd)' : 'weer actief (VPN gedeblokkeerd)'}!`;
+      toastStore.addToast(
+        `Gebruiker "${user.username}" is nu ${newStatus === 'disabled' ? 'gepauzeerd' : 'weer actief'}!`,
+        'success'
+      );
     } catch (err: any) {
-      toastSuccess.value = false;
-      toastMessage.value = err.response?.data?.error || 'Status wijzigen mislukt.';
+      toastStore.addToast(err.response?.data?.error || 'Status wijzigen mislukt.', 'error');
     }
   }
 }
@@ -308,18 +612,20 @@ function openAddModal() {
     dataLimitGb: 0,
     protocols: ['hysteria2', 'tuic', 'vless_reality']
   };
+  usernameError.value = '';
   showModal.value = true;
 }
 
-function openEditModal(user: VpnUser) {
+function openEditModal(user: any) {
   isEditing.value = true;
   selectedUserId.value = user.id;
-  const enabledProtos = user.protocols.filter(p => p.is_enabled).map(p => p.protocol_type);
+  const enabledProtos = user.protocols.filter((p: any) => p.is_enabled).map((p: any) => p.protocol_type);
   form.value = {
     username: user.username,
     dataLimitGb: user.data_limit_bytes ? Math.round(user.data_limit_bytes / (1024 * 1024 * 1024)) : 0,
     protocols: enabledProtos
   };
+  usernameError.value = '';
   showModal.value = true;
 }
 
@@ -328,8 +634,9 @@ function closeModal() {
 }
 
 async function saveUser() {
+  if (!validateUsername()) return;
+  
   saving.value = true;
-  toastMessage.value = '';
   try {
     const dataLimitBytes = (form.value.dataLimitGb || 0) * 1024 * 1024 * 1024;
     
@@ -338,8 +645,7 @@ async function saveUser() {
         dataLimitBytes,
         protocols: form.value.protocols
       });
-      toastSuccess.value = true;
-      toastMessage.value = 'Gebruiker en VPN configuratie succesvol bijgewerkt!';
+      toastStore.addToast('Gebruiker en VPN configuratie succesvol bijgewerkt!', 'success');
       closeModal();
     } else {
       const newUser = await userStore.createUser({
@@ -347,30 +653,24 @@ async function saveUser() {
         dataLimitBytes,
         protocols: form.value.protocols
       });
-      toastSuccess.value = true;
-      toastMessage.value = `Gebruiker "${newUser.username}" succesvol aangemaakt!`;
+      toastStore.addToast(`Gebruiker "${newUser.username}" succesvol aangemaakt!`, 'success');
       closeModal();
-      
-      // Auto-open QR modal for newly created user
       openQrModal(newUser);
     }
   } catch (err: any) {
-    toastSuccess.value = false;
-    toastMessage.value = err.response?.data?.error || err.message || 'Fout bij opslaan gebruiker.';
+    toastStore.addToast(err.response?.data?.error || err.message || 'Fout bij opslaan gebruiker.', 'error');
   } finally {
     saving.value = false;
   }
 }
 
 async function handleResetToken(id: string) {
-  if (confirm('Weet je zeker dat je het subscriptie token wilt resetten? De oude QR-code van de gebruiker zal vervallen.')) {
+  if (confirm('Weet je zeker dat je het subscriptie token wilt resetten? De oude QR-code wordt ongeldig.')) {
     try {
       await userStore.resetToken(id);
-      toastSuccess.value = true;
-      toastMessage.value = 'Subscriptie token succesvol vernieuwd!';
+      toastStore.addToast('Subscriptie token succesvol vernieuwd!', 'success');
     } catch (err: any) {
-      toastSuccess.value = false;
-      toastMessage.value = err.response?.data?.error || 'Token resetten mislukt.';
+      toastStore.addToast(err.response?.data?.error || 'Token resetten mislukt.', 'error');
     }
   }
 }
@@ -379,16 +679,15 @@ async function handleDelete(id: string) {
   if (confirm('Weet je zeker dat je deze gebruiker wilt verwijderen?')) {
     try {
       await userStore.deleteUser(id);
-      toastSuccess.value = true;
-      toastMessage.value = 'Gebruiker succesvol verwijderd.';
+      toastStore.addToast('Gebruiker succesvol verwijderd.', 'success');
+      clearSelection();
     } catch (err: any) {
-      toastSuccess.value = false;
-      toastMessage.value = err.response?.data?.error || 'Verwijderen mislukt.';
+      toastStore.addToast(err.response?.data?.error || 'Verwijderen mislukt.', 'error');
     }
   }
 }
 
-function openQrModal(user: VpnUser) {
+function openQrModal(user: any) {
   selectedUsername.value = user.username;
   selectedSubToken.value = user.subscriptionToken;
   showQrModal.value = true;
@@ -406,11 +705,75 @@ function getProtocolLabel(type: string) {
   return 'VLESS';
 }
 
-function formatBytes(bytes: number) {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+async function bulkToggleStatus() {
+  const newStatus = selectedUsers.value.every(id => {
+    const user = users.value.find(u => u.id === id);
+    return user?.status === 'active';
+  }) ? 'disabled' : 'active';
+  
+  if (confirm(`Weet je zeker dat je ${selectedUsers.value.length} gebruikers wilt ${newStatus === 'disabled' ? 'pauzeren' : 'hervatten'}?`)) {
+    try {
+      await userStore.bulkUpdateUsers(selectedUsers.value, { status: newStatus });
+      toastStore.addToast(`${selectedUsers.value.length} gebruikers succesvol bijgewerkt!`, 'success');
+      clearSelection();
+    } catch (err: any) {
+      toastStore.addToast('Bulk actie mislukt.', 'error');
+    }
+  }
 }
+
+async function bulkDelete() {
+  if (confirm(`Weet je zeker dat je ${selectedUsers.value.length} gebruikers wilt verwijderen?`)) {
+    try {
+      await userStore.bulkDeleteUsers(selectedUsers.value);
+      toastStore.addToast(`${selectedUsers.value.length} gebruikers succesvol verwijderd.`, 'success');
+      clearSelection();
+    } catch (err: any) {
+      toastStore.addToast('Bulk verwijderen mislukt.', 'error');
+    }
+  }
+}
+
+// Fetch users on mount
+onMounted(() => {
+  userStore.fetchUsers();
+});
 </script>
+
+<style scoped>
+/* Protocol Option */
+.protocol-option {
+  @apply flex items-center p-3 rounded-xl;
+  @apply bg-slate-800/50 border border-slate-700/50;
+  @apply cursor-pointer;
+  @apply transition-all duration-200;
+  @apply hover:bg-slate-700/50;
+}
+
+.protocol-option input[type="checkbox"] {
+  @apply accent-emerald-500;
+}
+
+/* Sort Indicator */
+.sort-indicator {
+  @apply ml-1 text-xs;
+}
+
+/* Table Wrapper */
+.table-wrapper {
+  @apply overflow-x-auto rounded-xl border border-slate-800;
+}
+
+/* Light Mode Adjustments */
+.light .protocol-option {
+  @apply bg-slate-100/80 border-slate-200;
+}
+
+.light .table-wrapper {
+  @apply border-slate-200;
+}
+
+.light .sort-indicator {
+  @apply text-slate-600;
+}
+</style>

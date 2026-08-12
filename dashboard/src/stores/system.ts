@@ -1,46 +1,39 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { api } from '../api/client';
+import type { SystemOverviewStats, UpdateProgress, RealityDetails } from '../types';
 
-export interface UpdateProgress {
-  active: boolean;
-  step: number;
-  progressPercent: number;
-  message: string;
-  error: string | null;
-  startTime: string | null;
-  completedAt: string | null;
-}
+const defaultStats: SystemOverviewStats = {
+  version: '',
+  serverStatus: 'online',
+  services: { singBox: 'active', backend: 'active' },
+  memory: { totalBytes: 0, usedBytes: 0, freeBytes: 0, usagePercentage: 0 },
+  disk: { totalBytes: 0, usedBytes: 0, freeBytes: 0, usagePercentage: 0 },
+  cpu: { cores: 1, model: 'Generic CPU', loadAvg1m: 0.05, loadAvg5m: 0, loadAvg15m: 0 },
+  network: { rxSpeedBytesPerSec: 0, txSpeedBytesPerSec: 0 },
+  system: { uptimeSeconds: 0, release: 'Linux' },
+  users: { active: 0, total: 0 },
+  topUsers: [],
+  protocolDistribution: { hysteria2: 0, tuic: 0, vless_reality: 0 },
+  mostUsedProtocol: 'Geen',
+  alerts: []
+};
+
+const defaultUpdateProgress: UpdateProgress = {
+  active: false,
+  step: 0,
+  progressPercent: 0,
+  message: '',
+  error: null,
+  startTime: null,
+  completedAt: null
+};
 
 export const useSystemStore = defineStore('system', () => {
-  const stats = ref<any>({
-    version: '',
-    serverStatus: 'online',
-    services: { singBox: 'active', backend: 'active' },
-    memory: { totalBytes: 0, usedBytes: 0, freeBytes: 0, usagePercentage: 0 },
-    disk: { totalBytes: 0, usedBytes: 0, freeBytes: 0, usagePercentage: 0 },
-    cpu: { cores: 1, model: 'Generic CPU', loadAvg1m: 0.05 },
-    network: { rxSpeedBytesPerSec: 0, txSpeedBytesPerSec: 0 },
-    system: { uptimeSeconds: 0, release: 'Linux' },
-    users: { active: 0, total: 0 },
-    topUsers: [],
-    protocolDistribution: { hysteria2: 0, tuic: 0, vless_reality: 0 },
-    mostUsedProtocol: 'Geen',
-    alerts: []
-  });
-
+  const stats = ref<SystemOverviewStats>(defaultStats);
   const logs = ref<string>('');
-  const realityDetails = ref<{ publicKey: string; shortId: string } | null>(null);
-  const updateProgress = ref<UpdateProgress>({
-    active: false,
-    step: 0,
-    progressPercent: 0,
-    message: '',
-    error: null,
-    startTime: null,
-    completedAt: null
-  });
-
+  const realityDetails = ref<RealityDetails | null>(null);
+  const updateProgress = ref<UpdateProgress>(defaultUpdateProgress);
   const loading = ref<boolean>(false);
 
   async function fetchStats() {
