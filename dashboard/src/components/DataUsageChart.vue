@@ -5,8 +5,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, type Ref } from 'vue';
+import { ref, onMounted, onUnmounted, watch, type Ref } from 'vue';
 import { Chart, registerables } from 'chart.js';
+import { useFormat } from '../composables/useFormat';
 
 Chart.register(...registerables);
 
@@ -15,6 +16,8 @@ const props = defineProps<{
   type?: 'bar' | 'line' | 'doughnut' | 'pie';
   title?: string;
 }>();
+
+const { formatBytes } = useFormat();
 
 const chartCanvas: Ref<HTMLCanvasElement | null> = ref(null);
 let chartInstance: Chart | null = null;
@@ -36,23 +39,29 @@ const lightModeColors = {
 };
 
 function getColors() {
-  const isDark = document.documentElement.classList.contains('dark');
-  return isDark ? defaultColors : lightModeColors;
+  const isLight = document.documentElement.classList.contains('light');
+  return isLight ? lightModeColors : defaultColors;
 }
 
-function renderChart() {
+function updateOrCreateChart() {
   if (!chartCanvas.value) return;
-
-  if (chartInstance) {
-    chartInstance.destroy();
-  }
 
   const colors = getColors();
   const chartType = props.type || 'bar';
-  
+  const labels = props.data.map(d => d.label);
+  const dataValues = props.data.map(d => d.value);
+
+  // If chart already exists, update data smoothly without replaying entrance animation
+  if (chartInstance) {
+    chartInstance.data.labels = labels;
+    chartInstance.data.datasets[0].data = dataValues;
+    chartInstance.update('none');
+    return;
+  }
+
   const datasets = [{
-    label: props.title || 'Data',
-    data: props.data.map(d => d.value),
+    label: props.title || 'Dataverbruik',
+    data: dataValues,
     backgroundColor: Object.values(colors),
     borderColor: Object.keys(colors).map(k => k.replace('0.8', '1')),
     borderWidth: 1,
@@ -65,21 +74,26 @@ function renderChart() {
     datasets[0].backgroundColor = Object.values(colors);
   }
 
+  const isLight = document.documentElement.classList.contains('light');
+
   chartInstance = new Chart(chartCanvas.value, {
     type: chartType,
     data: {
-      labels: props.data.map(d => d.label),
+      labels,
       datasets,
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      animation: {
+        duration: 400
+      },
       plugins: {
         legend: {
           display: chartType !== 'bar',
           position: 'bottom',
           labels: {
-            color: '#f8fafc',
+            color: isLight ? '#334155' : '#f8fafc',
             padding: 15,
             font: { size: 12 },
           },
@@ -87,19 +101,33 @@ function renderChart() {
         title: {
           display: !!props.title,
           text: props.title,
-          color: '#f8fafc',
+          color: isLight ? '#0f172a' : '#f8fafc',
           font: { size: 14, weight: 'bold' },
         },
+        tooltip: {
+          callbacks: {
+            label: (context) => {
+              const val = Number(context.raw || 0);
+              if (chartType === 'bar' || chartType === 'line') {
+                return ` Verbruik: ${formatBytes(val)}`;
+              }
+              return ` ${context.label}: ${val} verbindingen`;
+            }
+          }
+        }
       },
       scales: chartType === 'bar' || chartType === 'line' ? {
         y: {
           beginAtZero: true,
-          ticks: { color: '#94a3b8' },
-          grid: { color: 'rgba(255, 255, 255, 0.1)' },
+          ticks: {
+            color: isLight ? '#64748b' : '#94a3b8',
+            callback: (value) => formatBytes(Number(value))
+          },
+          grid: { color: isLight ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.1)' },
         },
         x: {
-          ticks: { color: '#94a3b8', maxRotation: 45, minRotation: 45 },
-          grid: { color: 'rgba(255, 255, 255, 0.1)' },
+          ticks: { color: isLight ? '#64748b' : '#94a3b8', maxRotation: 45, minRotation: 45 },
+          grid: { color: isLight ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.1)' },
         },
       } : {},
     },
@@ -107,22 +135,17 @@ function renderChart() {
 }
 
 onMounted(() => {
-  renderChart();
+  updateOrCreateChart();
 });
 
 watch(() => [props.data, props.type], () => {
-  renderChart();
+  updateOrCreateChart();
 }, { deep: true });
 
-// Re-render on theme change
-const observer = new MutationObserver(() => {
-  if (document.documentElement.classList.contains('dark') !== 
-      document.documentElement.classList.contains('light')) {
-    renderChart();
+onUnmounted(() => {
+  if (chartInstance) {
+    chartInstance.destroy();
+    chartInstance = null;
   }
-});
-
-onMounted(() => {
-  observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 });
 </script>

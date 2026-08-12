@@ -109,11 +109,11 @@
 
       <div class="glass-card">
         <div class="flex-between mb-2">
-          <span class="form-label mb-0">Actieve Protocollen</span>
-          <span class="badge badge-purple">Multi-Engine</span>
+          <span class="form-label mb-0">Gebruikers Status</span>
+          <span class="badge badge-emerald">Live</span>
         </div>
-        <div class="text-3xl font-extrabold text-white">3 Protocollen</div>
-        <div class="text-xs text-slate-400 mt-1">Hysteria2, TUIC v5, VLESS</div>
+        <div class="text-3xl font-extrabold text-white">{{ users.filter(u => u.status === 'active').length }} Actief</div>
+        <div class="text-xs text-slate-400 mt-1">{{ users.filter(u => u.status === 'disabled').length }} Gepauzeerd</div>
       </div>
     </div>
 

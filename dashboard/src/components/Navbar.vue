@@ -4,7 +4,7 @@
     <div
       v-if="showMobileMenu"
       @click="showMobileMenu = false"
-      class="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 md:hidden"
+      class="fixed inset-0 bg-black/60 z-40 md:hidden"
     ></div>
 
     <div class="navbar-container">
@@ -453,7 +453,7 @@ onUnmounted(() => {
 /* Mobile Navigation */
 .nav-menu-mobile {
   @apply fixed top-16 left-0 right-0;
-  @apply bg-slate-900/95 backdrop-blur-xl;
+  @apply bg-slate-900 shadow-2xl;
   @apply border-b border-slate-800;
   @apply z-50;
   @apply flex flex-col;
@@ -494,7 +494,7 @@ onUnmounted(() => {
 [data-tooltip]::after {
   content: attr(data-tooltip);
   position: absolute;
-  bottom: 100%;
+  top: 100%;
   left: 50%;
   transform: translateX(-50%);
   
@@ -506,11 +506,54 @@ onUnmounted(() => {
   @apply transition-all duration-200;
   @apply z-50;
   
-  margin-bottom: 8px;
+  margin-top: 8px;
 }
 
 [data-tooltip]:hover::after {
   opacity: 1;
   visibility: visible;
+}
+
+@media (max-width: 768px) {
+  [data-tooltip]::after {
+    display: none !important;
+  }
+}
+
+/* Light Mode Overrides */
+.light .navbar-container {
+  @apply bg-white/80 border-slate-200;
+}
+
+.light .brand-title {
+  @apply text-slate-900;
+}
+
+.light .nav-item {
+  @apply text-slate-600 hover:bg-slate-100 hover:text-slate-900;
+}
+
+.light .nav-menu-mobile {
+  @apply bg-white border-slate-200;
+}
+
+.light .mobile-nav-item {
+  @apply text-slate-600 hover:bg-slate-100 hover:text-slate-900;
+}
+
+.light .notifications-dropdown {
+  @apply bg-white border-slate-200 shadow-xl;
+}
+
+.light .notifications-header {
+  @apply border-slate-200;
+}
+
+.light .notifications-header h4 {
+  @apply text-slate-900;
+}
+
+.light .notification-title {
+  @apply text-slate-900;
 }
 </style>

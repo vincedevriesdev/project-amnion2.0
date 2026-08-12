@@ -157,7 +157,7 @@
 
   /* Modal Backdrop */
   .modal-backdrop {
-    @apply fixed inset-0 bg-black/80 backdrop-blur-lg z-50 flex items-center justify-center p-5;
+    @apply fixed inset-0 bg-black/80 backdrop-blur-lg z-[1000] flex items-center justify-center p-5;
   }
 
   /* Progress Bar */
@@ -241,25 +241,51 @@
   }
 
   /* Light mode adjustments */
+  .light {
+    background-color: #f8fafc !important;
+    color: #0f172a !important;
+    background-image: 
+      radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.08) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(168, 85, 247, 0.08) 0px, transparent 50%) !important;
+  }
+
+  .light body {
+    background-color: #f8fafc !important;
+    color: #0f172a !important;
+  }
+
+  .light .page-title,
+  .light h1, .light h2, .light h3, .light h4 {
+    color: #0f172a !important;
+  }
+
+  .light .page-subtitle {
+    color: #64748b !important;
+  }
+
+  .light .text-white {
+    color: #0f172a;
+  }
+
   .light .glass-card {
-    @apply bg-white/80 backdrop-blur-xl border border-slate-200;
-    box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.1);
+    @apply bg-white/90 backdrop-blur-xl border border-slate-200;
+    box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05);
   }
 
   .light .glass-input {
-    @apply bg-white border border-slate-200 text-text-main-light placeholder:text-text-muted-light;
+    @apply bg-white border border-slate-200 text-slate-900 placeholder:text-slate-400;
   }
 
   .light .glass-btn-secondary {
-    @apply bg-slate-100 text-text-main-light border border-slate-200;
+    @apply bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200;
   }
 
   .light .data-table th {
-    @apply bg-slate-100 text-text-muted-light border-b border-slate-200;
+    @apply bg-slate-100 text-slate-600 border-b border-slate-200;
   }
 
   .light .data-table td {
-    @apply border-b border-slate-200;
+    @apply border-b border-slate-200 text-slate-800;
   }
 
   .light .data-table tr:hover td {
@@ -267,27 +293,27 @@
   }
 
   .light .modal-backdrop {
-    @apply bg-black/60 backdrop-blur-lg;
+    @apply bg-black/50 backdrop-blur-md;
   }
 
   .light .badge-emerald {
-    @apply bg-emerald-100 text-emerald-600 border-emerald-200;
+    @apply bg-emerald-100 text-emerald-700 border-emerald-200;
   }
 
   .light .badge-cyan {
-    @apply bg-cyan-100 text-cyan-600 border-cyan-200;
+    @apply bg-cyan-100 text-cyan-700 border-cyan-200;
   }
 
   .light .badge-purple {
-    @apply bg-purple-100 text-purple-600 border-purple-200;
+    @apply bg-purple-100 text-purple-700 border-purple-200;
   }
 
   .light .badge-amber {
-    @apply bg-amber-100 text-amber-600 border-amber-200;
+    @apply bg-amber-100 text-amber-700 border-amber-200;
   }
 
   .light .badge-red {
-    @apply bg-red-100 text-red-600 border-red-200;
+    @apply bg-red-100 text-red-700 border-red-200;
   }
 }
 

@@ -174,7 +174,7 @@
           <div class="stat-item">
             <div class="flex items-center gap-3">
               <NetworkIcon class="w-5 h-5 text-emerald-500" />
-              <span class="text-white font-medium">Actieve Verbindingen</span>
+              <span class="text-white font-medium">Actieve VPN Accounts</span>
             </div>
             <span class="font-mono text-emerald-500 font-bold text-xl">
               {{ stats?.users?.active || 0 }}

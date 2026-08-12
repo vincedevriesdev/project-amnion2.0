@@ -1,5 +1,5 @@
 <template>
-  <div class="app-wrapper min-h-screen flex flex-col bg-bg-dark light:bg-bg-light transition-colors duration-300">
+  <div class="app-wrapper min-h-screen flex flex-col transition-colors duration-300">
     <!-- Toast Container -->
     <div class="fixed bottom-5 right-5 z-[100] flex flex-col gap-3">
       <transition-group name="toast">

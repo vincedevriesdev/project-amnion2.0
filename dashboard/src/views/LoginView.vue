@@ -38,7 +38,7 @@
               type="text"
               v-model="username"
               required
-              class="glass-input w-full"
+              class="glass-input w-full !pl-12"
               placeholder="Voer je gebruikersnaam in"
               autocomplete="username"
               :disabled="submitting"
@@ -55,7 +55,7 @@
               type="password"
               v-model="password"
               required
-              class="glass-input w-full"
+              class="glass-input w-full !pl-12"
               placeholder="Voer je wachtwoord in"
               autocomplete="current-password"
               :disabled="submitting"
@@ -73,14 +73,6 @@
           <ArrowRightIcon class="w-5 h-5" />
         </button>
       </form>
-
-      <!-- Security Notice -->
-      <div class="security-notice mt-8 text-center">
-        <ShieldCheckIcon class="w-4 h-4 inline-block mr-2" />
-        <span class="text-xs text-slate-500 font-medium">
-          Argon2id Cryptografische Beveiliging
-        </span>
-      </div>
     </div>
   </div>
 </template>
