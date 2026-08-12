@@ -503,7 +503,7 @@ onUnmounted(() => {
   @apply px-2 py-1 rounded;
   @apply whitespace-nowrap;
   @apply opacity-0 invisible;
-  @apply transition-opacity transition-visibility duration-200;
+  @apply transition-all duration-200;
   @apply z-50;
   
   margin-bottom: 8px;

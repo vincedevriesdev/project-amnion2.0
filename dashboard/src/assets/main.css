@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -5,9 +7,6 @@
 /* ==============================================================================
    Project Amnion 2.0 - Custom Styles & Tailwind Extensions
    ============================================================================== */
-
-/* Import Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
 /* Base Styles */
 @layer base {
@@ -234,7 +233,7 @@
     @apply absolute bottom-full left-1/2 -translate-x-1/2 mt-2 px-3 py-1.5 text-xs font-medium;
     @apply bg-slate-800 text-white rounded-lg whitespace-nowrap;
     @apply border border-slate-700 shadow-lg;
-    @apply opacity-0 invisible transition-opacity transition-visibility duration-200;
+    @apply opacity-0 invisible transition-all duration-200;
   }
 
   .group:hover .tooltip {

@@ -172,7 +172,7 @@ watch(autoRefresh, (val) => {
 <style scoped>
 /* Terminal Viewer */
 .terminal-viewer {
-  @apply glass-card;
+  @apply bg-glass-bg backdrop-blur-xl border border-glass-border rounded-3xl p-6;
   @apply bg-slate-900;
   @apply flex flex-col;
   @apply min-h-[600px];
@@ -197,7 +197,8 @@ watch(autoRefresh, (val) => {
   @apply text-slate-300;
   @apply whitespace-pre-wrap;
   @apply leading-relaxed;
-  @apply scrollbar-hide;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 .terminal-footer {
