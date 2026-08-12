@@ -131,11 +131,11 @@ export class StatsService {
       LIMIT 5
     `).all() as any[];
 
-    // Protocol distribution based on unique connected client IP addresses
-    const protocolIpMap: Record<string, Set<string>> = {
-      hysteria2: new Set<string>(),
-      tuic: new Set<string>(),
-      vless_reality: new Set<string>()
+    // Protocol distribution based on smart NAT port clustering
+    const protocolCountsMap: Record<string, number> = {
+      hysteria2: 0,
+      tuic: 0,
+      vless_reality: 0
     };
 
     try {
@@ -150,35 +150,56 @@ export class StatsService {
         }
       }
 
+      // Group ports by client IP and protocol
+      const ipPortMap: Record<string, number[]> = {};
+
       for (const line of logLines) {
-        // Extract client IP address from inbound log lines
-        const ipMatch = line.match(/inbound connection from\s+\[?(?:::ffff:)?([0-9a-fA-F.:]+)\]?:/);
-        if (ipMatch) {
-          const clientIp = ipMatch[1];
+        const match = line.match(/inbound connection from\s+\[?(?:::ffff:)?([0-9a-fA-F.:]+)\]?:([0-9]+)/);
+        if (match) {
+          const clientIp = match[1];
+          const port = parseInt(match[2], 10);
+          let protoKey = 'vless_reality';
           if (line.includes('inbound/hy2') || line.includes('inbound/hysteria2')) {
-            protocolIpMap.hysteria2.add(clientIp);
+            protoKey = 'hysteria2';
           } else if (line.includes('inbound/tuic')) {
-            protocolIpMap.tuic.add(clientIp);
-          } else if (line.includes('inbound/vless')) {
-            protocolIpMap.vless_reality.add(clientIp);
+            protoKey = 'tuic';
           }
+
+          const mapKey = `${protoKey}:${clientIp}`;
+          if (!ipPortMap[mapKey]) ipPortMap[mapKey] = [];
+          ipPortMap[mapKey].push(port);
+        }
+      }
+
+      // Cluster sequential ports to identify distinct physical devices behind the same NAT IP
+      for (const [mapKey, ports] of Object.entries(ipPortMap)) {
+        const protoKey = mapKey.split(':')[0];
+        ports.sort((a, b) => a - b);
+        let distinctDevices = 1;
+        for (let i = 1; i < ports.length; i++) {
+          // A port gap > 100 indicates a separate client device on a shared (school/office) NAT network
+          if (ports[i] - ports[i - 1] > 100) {
+            distinctDevices++;
+          }
+        }
+        if (protoKey in protocolCountsMap) {
+          protocolCountsMap[protoKey] += distinctDevices;
         }
       }
     } catch {}
 
     const protocolMap: Record<string, number> = {
-      hysteria2: protocolIpMap.hysteria2.size,
-      tuic: protocolIpMap.tuic.size,
-      vless_reality: protocolIpMap.vless_reality.size
+      hysteria2: protocolCountsMap.hysteria2,
+      tuic: protocolCountsMap.tuic,
+      vless_reality: protocolCountsMap.vless_reality
     };
 
     let mostUsedProtocol = 'Geen actieve verbindingen';
     let maxProtoCount = 0;
 
-    for (const [pType, pCount] of Object.entries(protocolIpMap)) {
-      const count = pCount.size;
-      if (count > maxProtoCount) {
-        maxProtoCount = count;
+    for (const [pType, pCount] of Object.entries(protocolMap)) {
+      if (pCount > maxProtoCount) {
+        maxProtoCount = pCount;
         mostUsedProtocol = pType === 'vless_reality' ? 'VLESS REALITY' : pType === 'hysteria2' ? 'Hysteria 2' : 'TUIC v5';
       }
     }
