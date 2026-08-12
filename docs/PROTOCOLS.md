@@ -61,6 +61,6 @@ Hiddify Next is de officiële client voor Project Amnion 2.0. Het dashboard gene
 2. **Directe URI Schemas**:
    - Hysteria 2: `hysteria2://<uuid>@<host>:8443?insecure=1&sni=<domain>#🚀 HY2 (Mobiel 4G/5G) - <username>`
    - TUIC v5: `tuic://<uuid>:<uuid>@<host>:8444?congestion_control=bbr&allow_insecure=1&insecure=1&sni=<domain>#⚡ TUIC v5 (Lage Latency) - <username>`
-   - VLESS REALITY: `vless://<uuid>@<host>:443?type=tcp&security=reality&pbk=<public_key>&fp=chrome&sni=dl.google.com&sid=<short_id>&flow=xtls-rprx-vision#🛡️ VLESS REALITY (Camouflage) - <username>`
+   - VLESS REALITY: `vless://<uuid>@<host>:443?type=tcp&security=reality&pbk=<public_key>&fp=chrome&sni=dl.google.com&sid=<short_id>&flow=xtls-rprx-vision&encryption=none#🛡️ VLESS REALITY (Camouflage) - <username>`
 3. **QR Codes**:
    - Genereert SVG / PNG QR-codes van de URI's of Subscription URL voor directe camera-import in de mobiele Hiddify app.

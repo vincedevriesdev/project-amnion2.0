@@ -107,4 +107,4 @@ Wijzigt het admin wachtwoord via Argon2id.
 ## 📊 Monitoring & Statistieken (`/api/v1/stats`)
 
 ### `GET /api/v1/stats/overview`
-Haalt real-time CPU belasting, RAM gebruik, schijfgebruik (SSD), netwerksnelheid (RX/TX bytes/sec) en protocolverdeling op.
+Haalt real-time CPU belasting, RAM gebruik, schijfgebruik (SSD), netwerksnelheid (RX/TX bytes/sec) en unieke live verbonden protocolverdeling (via Smart NAT Port Clustering) op.
