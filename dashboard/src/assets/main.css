@@ -315,6 +315,12 @@
   .light .badge-red {
     @apply bg-red-100 text-red-700 border-red-200;
   }
+
+  .light [data-tooltip]::after,
+  .light .tooltip {
+    @apply bg-slate-900 border border-slate-700 shadow-xl;
+    color: #ffffff !important;
+  }
 }
 
 /* Utilities */

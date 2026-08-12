@@ -557,4 +557,9 @@ onUnmounted(() => {
 .light .notification-title {
   @apply text-slate-900;
 }
+
+.light [data-tooltip]::after {
+  @apply bg-slate-900 border border-slate-700 shadow-xl;
+  color: #ffffff !important;
+}
 </style>

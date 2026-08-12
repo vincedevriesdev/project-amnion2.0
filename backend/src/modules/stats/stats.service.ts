@@ -131,28 +131,57 @@ export class StatsService {
       LIMIT 5
     `).all() as any[];
 
-    // Protocol distribution
-    const protocolCounts = db.prepare(`
-      SELECT protocol_type, COUNT(*) as count
-      FROM user_protocols
-      WHERE is_enabled = 1
-      GROUP BY protocol_type
-    `).all() as any[];
-
+    // Protocol distribution based on actual live connections
     const protocolMap: Record<string, number> = {
       hysteria2: 0,
       tuic: 0,
       vless_reality: 0
     };
 
+    try {
+      let logLines: string[] = [];
+      try {
+        const stdout = execSync('journalctl -u sing-box -n 200 --no-pager', { encoding: 'utf-8', timeout: 1000 });
+        logLines = stdout.trim().split('\n');
+      } catch {
+        const logFile = '/var/log/sing-box/sing-box.log';
+        if (fs.existsSync(logFile)) {
+          logLines = fs.readFileSync(logFile, 'utf-8').trim().split('\n').slice(-200);
+        }
+      }
+
+      for (const line of logLines) {
+        if (line.includes('inbound/hy2') || line.includes('inbound/hysteria2')) {
+          protocolMap.hysteria2++;
+        } else if (line.includes('inbound/tuic')) {
+          protocolMap.tuic++;
+        } else if (line.includes('inbound/vless')) {
+          protocolMap.vless_reality++;
+        }
+      }
+    } catch {}
+
+    // Fallback to assigned protocols if no live log connections present
+    const totalLiveConns = protocolMap.hysteria2 + protocolMap.tuic + protocolMap.vless_reality;
+    if (totalLiveConns === 0) {
+      const dbCounts = db.prepare(`
+        SELECT protocol_type, COUNT(*) as count
+        FROM user_protocols
+        WHERE is_enabled = 1
+        GROUP BY protocol_type
+      `).all() as any[];
+      for (const row of dbCounts) {
+        protocolMap[row.protocol_type] = row.count;
+      }
+    }
+
     let mostUsedProtocol = 'None';
     let maxProtoCount = -1;
 
-    for (const row of protocolCounts) {
-      protocolMap[row.protocol_type] = row.count;
-      if (row.count > maxProtoCount) {
-        maxProtoCount = row.count;
-        mostUsedProtocol = row.protocol_type === 'vless_reality' ? 'VLESS+REALITY' : row.protocol_type.toUpperCase();
+    for (const [pType, pCount] of Object.entries(protocolMap)) {
+      if (pCount > maxProtoCount) {
+        maxProtoCount = pCount;
+        mostUsedProtocol = pType === 'vless_reality' ? 'VLESS REALITY' : pType === 'hysteria2' ? 'Hysteria 2' : 'TUIC v5';
       }
     }
 
