@@ -337,7 +337,7 @@
               </button>
               <button
                 type="submit"
-                :disabled="saving || usernameError"
+                :disabled="saving || (!isEditing && !!usernameError)"
                 class="glass-btn glass-btn-primary"
               >
                 <span v-if="saving">Bezig met opslaan...</span>
@@ -634,11 +634,13 @@ function closeModal() {
 }
 
 async function saveUser() {
-  if (!validateUsername()) return;
+  if (!isEditing.value) {
+    if (!validateUsername()) return;
+  }
   
   saving.value = true;
   try {
-    const dataLimitBytes = (form.value.dataLimitGb || 0) * 1024 * 1024 * 1024;
+    const dataLimitBytes = (Number(form.value.dataLimitGb) || 0) * 1024 * 1024 * 1024;
     
     if (isEditing.value) {
       await userStore.updateUser(selectedUserId.value, {
