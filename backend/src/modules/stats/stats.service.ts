@@ -131,56 +131,54 @@ export class StatsService {
       LIMIT 5
     `).all() as any[];
 
-    // Protocol distribution based on actual live connections
-    const protocolMap: Record<string, number> = {
-      hysteria2: 0,
-      tuic: 0,
-      vless_reality: 0
+    // Protocol distribution based on unique connected client IP addresses
+    const protocolIpMap: Record<string, Set<string>> = {
+      hysteria2: new Set<string>(),
+      tuic: new Set<string>(),
+      vless_reality: new Set<string>()
     };
 
     try {
       let logLines: string[] = [];
       try {
-        const stdout = execSync('journalctl -u sing-box -n 200 --no-pager', { encoding: 'utf-8', timeout: 1000 });
+        const stdout = execSync('journalctl -u sing-box -n 250 --no-pager', { encoding: 'utf-8', timeout: 1000 });
         logLines = stdout.trim().split('\n');
       } catch {
         const logFile = '/var/log/sing-box/sing-box.log';
         if (fs.existsSync(logFile)) {
-          logLines = fs.readFileSync(logFile, 'utf-8').trim().split('\n').slice(-200);
+          logLines = fs.readFileSync(logFile, 'utf-8').trim().split('\n').slice(-250);
         }
       }
 
       for (const line of logLines) {
-        if (line.includes('inbound/hy2') || line.includes('inbound/hysteria2')) {
-          protocolMap.hysteria2++;
-        } else if (line.includes('inbound/tuic')) {
-          protocolMap.tuic++;
-        } else if (line.includes('inbound/vless')) {
-          protocolMap.vless_reality++;
+        // Extract client IP address from inbound log lines
+        const ipMatch = line.match(/inbound connection from\s+\[?(?:::ffff:)?([0-9a-fA-F.:]+)\]?:/);
+        if (ipMatch) {
+          const clientIp = ipMatch[1];
+          if (line.includes('inbound/hy2') || line.includes('inbound/hysteria2')) {
+            protocolIpMap.hysteria2.add(clientIp);
+          } else if (line.includes('inbound/tuic')) {
+            protocolIpMap.tuic.add(clientIp);
+          } else if (line.includes('inbound/vless')) {
+            protocolIpMap.vless_reality.add(clientIp);
+          }
         }
       }
     } catch {}
 
-    // Fallback to assigned protocols if no live log connections present
-    const totalLiveConns = protocolMap.hysteria2 + protocolMap.tuic + protocolMap.vless_reality;
-    if (totalLiveConns === 0) {
-      const dbCounts = db.prepare(`
-        SELECT protocol_type, COUNT(*) as count
-        FROM user_protocols
-        WHERE is_enabled = 1
-        GROUP BY protocol_type
-      `).all() as any[];
-      for (const row of dbCounts) {
-        protocolMap[row.protocol_type] = row.count;
-      }
-    }
+    const protocolMap: Record<string, number> = {
+      hysteria2: protocolIpMap.hysteria2.size,
+      tuic: protocolIpMap.tuic.size,
+      vless_reality: protocolIpMap.vless_reality.size
+    };
 
-    let mostUsedProtocol = 'None';
-    let maxProtoCount = -1;
+    let mostUsedProtocol = 'Geen actieve verbindingen';
+    let maxProtoCount = 0;
 
-    for (const [pType, pCount] of Object.entries(protocolMap)) {
-      if (pCount > maxProtoCount) {
-        maxProtoCount = pCount;
+    for (const [pType, pCount] of Object.entries(protocolIpMap)) {
+      const count = pCount.size;
+      if (count > maxProtoCount) {
+        maxProtoCount = count;
         mostUsedProtocol = pType === 'vless_reality' ? 'VLESS REALITY' : pType === 'hysteria2' ? 'Hysteria 2' : 'TUIC v5';
       }
     }
