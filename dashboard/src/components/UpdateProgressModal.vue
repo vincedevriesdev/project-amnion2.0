@@ -1,46 +1,68 @@
 <template>
-  <div class="modal-backdrop" v-if="isOpen">
-    <div class="modal-box" style="max-width: 520px;">
-      <div class="flex-between" style="margin-bottom: 16px;">
-        <h3 style="font-size: 20px; font-weight: 800; color: #fff; display: flex; align-items: center; gap: 10px;">
-          <span style="width: 12px; height: 12px; border-radius: 50%; display: inline-block;" :style="isFinished ? 'background: #34d399;' : 'background: #38bdf8;' " class="animate-pulse"></span>
-          {{ isFinished ? '🎉 Update Voltooid' : 'Amnion 2.0 Live Update' }}
-        </h3>
-        <button v-if="isFinished || isError" @click="close" style="background: none; border: none; color: var(--text-muted); font-size: 24px; cursor: pointer;">&times;</button>
-      </div>
+  <transition name="fade">
+    <div v-if="isOpen" class="modal-backdrop" @click.self="close">
+      <div class="modal-box max-w-lg w-full" @click.stop>
+        <div class="flex-between mb-4">
+          <h3 class="text-xl font-extrabold text-white flex items-center gap-2">
+            <span
+              class="w-3 h-3 rounded-full"
+              :class="isFinished ? 'bg-emerald-500' : 'bg-cyan-500 animate-pulse'"
+            ></span>
+            {{ isFinished ? '✨ Update Voltooid' : 'Amnion 2.0 Live Update' }}
+          </h3>
+          <button
+            v-if="isFinished || isError"
+            @click="close"
+            class="text-slate-400 hover:text-white text-2xl"
+          >
+            ×
+          </button>
+        </div>
 
-      <!-- Live Progress Bar -->
-      <div style="margin-bottom: 24px;">
-        <div class="flex-between" style="margin-bottom: 8px;">
-          <span style="font-size: 13px; font-weight: 700; color: var(--text-muted);">Voortgang</span>
-          <span class="font-mono text-cyan" style="font-weight: 800; font-size: 14px;">{{ isFinished ? 100 : progressPercent }}%</span>
+        <!-- Progress Bar -->
+        <div class="mb-6">
+          <div class="flex-between mb-2">
+            <span class="text-sm font-bold text-slate-400">Voortgang</span>
+            <span class="font-mono text-cyan-500 font-bold">{{ isFinished ? 100 : progressPercent }}%</span>
+          </div>
+          <div class="progress-bar h-3">
+            <div
+              class="progress-fill bg-gradient-to-r from-cyan-500 to-emerald-500"
+              :style="{ width: (isFinished ? 100 : progressPercent) + '%' }"
+            ></div>
+          </div>
         </div>
-        <div class="progress-bar" style="height: 12px; background: rgba(255,255,255,0.08);">
-          <div class="progress-fill" style="background: linear-gradient(90deg, #06b6d4 0%, #10b981 100%); transition: width 0.4s ease;" :style="{ width: (isFinished ? 100 : progressPercent) + '%' }"></div>
-        </div>
-      </div>
 
-      <!-- Current Step Message -->
-      <div style="background: rgba(30, 41, 59, 0.6); padding: 18px; border-radius: 14px; border: 1px solid var(--border-glass); margin-bottom: 24px;">
-        <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); font-weight: 700; margin-bottom: 6px;">
-          {{ isError ? 'Foutmelding' : (isFinished ? 'Stap 5/5' : `Stap ${step}/5`) }}
+        <!-- Current Step Message -->
+        <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50 mb-6">
+          <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+            {{ isError ? 'Foutmelding' : (isFinished ? 'Stap 5/5' : `Stap ${step}/5`) }}
+          </div>
+          <div class="text-sm font-semibold text-white">
+            {{ isFinished ? '🎉 Update succesvol voltooid! Amnion 2.0 is nu bijgewerkt. Pagina wordt automatisch ververst...' : message }}
+          </div>
         </div>
-        <div style="font-size: 14px; font-weight: 600; color: #fff; line-height: 1.5;">
-          {{ isFinished ? '🎉 Update succesvol voltooid! Amnion 2.0 is nu bijgewerkt naar de nieuwste versie. Pagina wordt automatisch ververst over 3 seconden...' : message }}
-        </div>
-      </div>
 
-      <!-- Auto reload on completion -->
-      <div style="display: flex; justify-content: flex-end; gap: 12px;">
-        <button v-if="isFinished" @click="reloadPage" class="btn btn-primary" style="width: 100%;">
-          🎉 Pagina Nu Herladen
-        </button>
-        <button v-else-if="isError" @click="close" class="btn btn-secondary" style="width: 100%;">
-          Sluiten
-        </button>
+        <!-- Auto reload on completion -->
+        <div class="flex justify-end">
+          <button
+            v-if="isFinished"
+            @click="reloadPage"
+            class="glass-btn glass-btn-primary w-full"
+          >
+            🎉 Pagina Nu Herladen
+          </button>
+          <button
+            v-else-if="isError"
+            @click="close"
+            class="glass-btn glass-btn-secondary w-full"
+          >
+            Sluiten
+          </button>
+        </div>
       </div>
     </div>
-  </div>
+  </transition>
 </template>
 
 <script setup lang="ts">

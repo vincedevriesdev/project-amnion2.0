@@ -1,135 +1,180 @@
 <template>
-  <div>
+  <div class="space-y-6">
+    <!-- Page Header -->
     <div class="page-header">
       <div>
         <h1 class="page-title">Server Overzicht</h1>
-        <p class="page-subtitle">Real-time status, netwerkmonitoring en service gezondheid van je Amnion node</p>
+        <p class="page-subtitle">Real-time status, netwerkmonitoring en service gezondheid</p>
       </div>
-
-      <div style="display: flex; gap: 12px; align-items: center;">
-        <span class="badge badge-emerald" style="font-size: 13px; padding: 8px 16px;">
-          <span style="width: 8px; height: 8px; border-radius: 50%; background: #34d399; display: inline-block;"></span>
-          Server {{ systemStore.stats?.serverStatus || 'Online' }}
+      
+      <div class="flex items-center gap-3">
+        <span
+          class="badge"
+          :class="{
+            'badge-emerald': stats?.serverStatus === 'online',
+            'badge-amber': stats?.serverStatus === 'degraded',
+            'badge-red': stats?.serverStatus === 'offline',
+          }"
+        >
+          <span
+            class="w-2 h-2 rounded-full"
+            :class="{
+              'bg-emerald-500': stats?.serverStatus === 'online',
+              'bg-amber-500': stats?.serverStatus === 'degraded',
+              'bg-red-500': stats?.serverStatus === 'offline',
+            }"
+          ></span>
+          Server {{ stats?.serverStatus === 'online' ? 'Online' : stats?.serverStatus === 'degraded' ? 'Beperkt' : 'Offline' }}
         </span>
 
-        <button @click="handleReloadSingbox" :disabled="reloading" class="btn btn-primary">
-          <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-          {{ reloading ? 'Herladen...' : 'Herlaad Sing-box Config' }}
+        <button
+          @click="handleReloadSingbox"
+          :disabled="reloading"
+          class="glass-btn glass-btn-primary"
+        >
+          <RefreshIcon class="w-4 h-4" />
+          <span>{{ reloading ? 'Herladen...' : 'Herlaad Config' }}</span>
         </button>
       </div>
     </div>
 
-    <!-- Warning Alerts Banner -->
-    <div v-if="systemStore.stats?.alerts && systemStore.stats.alerts.length > 0" style="margin-bottom: 24px; display: flex; flex-direction: column; gap: 12px;">
-      <div v-for="(alert, idx) in systemStore.stats.alerts" :key="idx" style="padding: 16px 20px; border-radius: 14px; font-size: 14px; font-weight: 600;" :style="alert.level === 'danger' ? 'background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5;' : 'background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.3); color: #fcd34d;'">
-        {{ alert.message }}
+    <!-- Alerts Banner -->
+    <transition name="fade">
+      <div v-if="stats?.alerts?.length > 0" class="space-y-2">
+        <div
+          v-for="(alert, idx) in stats.alerts"
+          :key="idx"
+          class="alert"
+          :class="alert.level === 'danger' ? 'alert-danger' : 'alert-warning'"
+        >
+          {{ alert.message }}
+        </div>
       </div>
-    </div>
-
-    <!-- Alert Toast -->
-    <div v-if="toastMessage" style="margin-bottom: 24px; padding: 16px; border-radius: 14px; font-size: 14px; font-weight: 500;" :style="toastSuccess ? 'background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); color: #34d399;' : 'background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5;'">
-      {{ toastMessage }}
-    </div>
+    </transition>
 
     <!-- Metric Cards Grid -->
-    <div class="grid-4" style="margin-bottom: 32px;" v-if="systemStore.stats">
+    <div class="grid-4">
       <!-- CPU Usage -->
       <div class="glass-card">
-        <div class="flex-between" style="margin-bottom: 12px;">
-          <span class="form-label" style="margin-bottom: 0;">CPU Belasting</span>
-          <span class="font-mono text-emerald" style="font-weight: 700;">{{ systemStore.stats.cpu.loadAvg1m }} Load</span>
+        <div class="flex-between mb-3">
+          <span class="form-label mb-0">CPU Belasting</span>
+          <span class="font-mono text-emerald-500 font-bold">{{ stats?.cpu?.loadAvg1m }} Load</span>
         </div>
-        <div style="font-size: 26px; font-weight: 800; color: #fff; margin-bottom: 4px;">{{ systemStore.stats.cpu.cores }} Cores</div>
-        <div style="font-size: 12px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-          {{ systemStore.stats.cpu.model }}
+        <div class="text-3xl font-extrabold text-white mb-1">
+          {{ stats?.cpu?.cores }} Cores
+        </div>
+        <div class="text-xs text-slate-400 truncate">
+          {{ stats?.cpu?.model || 'Onbekend' }}
         </div>
       </div>
 
       <!-- RAM Usage -->
       <div class="glass-card">
-        <div class="flex-between" style="margin-bottom: 12px;">
-          <span class="form-label" style="margin-bottom: 0;">RAM Gebruik</span>
-          <span class="font-mono text-cyan" style="font-weight: 700;">{{ systemStore.stats.memory.usagePercentage }}%</span>
+        <div class="flex-between mb-3">
+          <span class="form-label mb-0">RAM Gebruik</span>
+          <span class="font-mono text-cyan-500 font-bold">{{ stats?.memory?.usagePercentage }}%</span>
         </div>
-        <div style="font-size: 26px; font-weight: 800; color: #fff; margin-bottom: 8px;">{{ formatBytes(systemStore.stats.memory.usedBytes) }} / {{ formatBytes(systemStore.stats.memory.totalBytes) }}</div>
+        <div class="text-3xl font-extrabold text-white mb-2">
+          {{ formatBytes(stats?.memory?.usedBytes || 0) }} / {{ formatBytes(stats?.memory?.totalBytes || 0) }}
+        </div>
         <div class="progress-bar">
-          <div class="progress-fill" style="background: var(--accent-cyan);" :style="{ width: systemStore.stats.memory.usagePercentage + '%' }"></div>
+          <div
+            class="progress-fill bg-cyan-500"
+            :style="{ width: stats?.memory?.usagePercentage + '%' }"
+          ></div>
         </div>
       </div>
 
-      <!-- Disk Usage (10 GB VPS Cap) -->
+      <!-- Disk Usage -->
       <div class="glass-card">
-        <div class="flex-between" style="margin-bottom: 12px;">
-          <span class="form-label" style="margin-bottom: 0;">Schijfgebruik (SSD)</span>
-          <span class="font-mono text-purple" style="font-weight: 700;">{{ systemStore.stats.disk.usagePercentage }}%</span>
+        <div class="flex-between mb-3">
+          <span class="form-label mb-0">Schijfgebruik (SSD)</span>
+          <span class="font-mono text-purple-500 font-bold">{{ stats?.disk?.usagePercentage }}%</span>
         </div>
-        <div style="font-size: 26px; font-weight: 800; color: #fff; margin-bottom: 8px;">{{ formatBytes(systemStore.stats.disk.usedBytes) }} / {{ formatBytes(systemStore.stats.disk.totalBytes) }}</div>
+        <div class="text-3xl font-extrabold text-white mb-2">
+          {{ formatBytes(stats?.disk?.usedBytes || 0) }} / {{ formatBytes(stats?.disk?.totalBytes || 0) }}
+        </div>
         <div class="progress-bar">
-          <div class="progress-fill" style="background: var(--accent-purple);" :style="{ width: systemStore.stats.disk.usagePercentage + '%' }"></div>
+          <div
+            class="progress-fill bg-purple-500"
+            :style="{ width: stats?.disk?.usagePercentage + '%' }"
+          ></div>
         </div>
       </div>
 
       <!-- Active Users -->
       <div class="glass-card">
-        <div class="flex-between" style="margin-bottom: 12px;">
-          <span class="form-label" style="margin-bottom: 0;">VPN Gebruikers</span>
+        <div class="flex-between mb-3">
+          <span class="form-label mb-0">VPN Gebruikers</span>
           <span class="badge badge-emerald">Online</span>
         </div>
-        <div style="font-size: 26px; font-weight: 800; color: #fff; margin-bottom: 4px;">{{ systemStore.stats.users.active }} / {{ systemStore.stats.users.total }}</div>
-        <div style="font-size: 12px; color: var(--text-muted);">Actief toegewezen</div>
+        <div class="text-3xl font-extrabold text-white mb-1">
+          {{ stats?.users?.active }} / {{ stats?.users?.total }}
+        </div>
+        <div class="text-xs text-slate-400">Actief toegewezen</div>
       </div>
     </div>
 
-    <!-- Service Health & Protocol Distribution -->
-    <div class="grid-2" style="margin-bottom: 32px;" v-if="systemStore.stats">
+    <!-- Service Health & System Info -->
+    <div class="grid-2">
       <!-- Service Health -->
       <div class="glass-card">
-        <h3 style="font-size: 18px; font-weight: 800; color: #fff; margin-bottom: 16px;">🚦 Service Gezondheid & Daemons</h3>
+        <h3 class="text-xl font-extrabold text-white mb-4">
+          🚦 Service Gezondheid
+        </h3>
         
-        <div style="display: flex; flex-direction: column; gap: 14px;">
-          <div style="background: rgba(15, 23, 42, 0.6); padding: 16px; border-radius: 14px; border: 1px solid var(--border-glass);" class="flex-between">
+        <div class="space-y-3">
+          <div
+            v-for="(service, name) in stats?.services"
+            :key="name"
+            class="service-item"
+          >
             <div>
-              <div style="font-weight: 700; color: #fff;">sing-box.service (VPN Engine)</div>
-              <div style="font-size: 12px; color: var(--text-muted);">Multi-protocol kernel routing daemon</div>
+              <div class="font-bold text-white">
+                {{ name === 'singBox' ? 'sing-box.service' : 'amnion-backend.service' }}
+              </div>
+              <div class="text-xs text-slate-400">
+                {{ name === 'singBox' ? 'VPN Engine Daemon' : 'Control Daemon' }}
+              </div>
             </div>
-            <span class="badge" :class="systemStore.stats.services.singBox === 'active' ? 'badge-emerald' : 'badge-red'">
-              {{ systemStore.stats.services.singBox }}
+            <span
+              class="badge"
+              :class="service === 'active' ? 'badge-emerald' : service === 'inactive' ? 'badge-amber' : 'badge-red'"
+            >
+              {{ service }}
             </span>
-          </div>
-
-          <div style="background: rgba(15, 23, 42, 0.6); padding: 16px; border-radius: 14px; border: 1px solid var(--border-glass);" class="flex-between">
-            <div>
-              <div style="font-weight: 700; color: #fff;">amnion-backend.service (Control Daemon)</div>
-              <div style="font-size: 12px; color: var(--text-muted);">Fastify TypeScript REST & Session API</div>
-            </div>
-            <span class="badge badge-emerald">active</span>
           </div>
         </div>
       </div>
 
-      <!-- Quick System Info -->
-      <div class="glass-card flex-col justify-between">
-        <div>
-          <h3 style="font-size: 18px; font-weight: 800; color: #fff; margin-bottom: 16px;">⚡ Systeem Informatie</h3>
-          <div style="display: flex; flex-direction: column; gap: 10px; font-size: 14px;">
-            <div class="flex-between">
-              <span class="text-muted">Amnion Versie:</span>
-              <span class="font-mono text-emerald" style="font-weight: 700;">{{ systemStore.stats.version }}</span>
-            </div>
-            <div class="flex-between">
-              <span class="text-muted">System Uptime:</span>
-              <span class="font-mono" style="color: #fff;">{{ formatUptime(systemStore.stats.system.uptimeSeconds) }}</span>
-            </div>
-            <div class="flex-between">
-              <span class="text-muted">Linux Kernel:</span>
-              <span class="font-mono" style="color: #fff;">{{ systemStore.stats.system.release }}</span>
-            </div>
+      <!-- System Info -->
+      <div class="glass-card">
+        <h3 class="text-xl font-extrabold text-white mb-4">
+          ⚙️ Systeem Informatie
+        </h3>
+        
+        <div class="space-y-3 text-sm">
+          <div class="info-row">
+            <span class="text-slate-400">Amnion Versie:</span>
+            <span class="font-mono text-emerald-500 font-bold">{{ stats?.version || 'Onbekend' }}</span>
+          </div>
+          <div class="info-row">
+            <span class="text-slate-400">System Uptime:</span>
+            <span class="font-mono text-white">{{ formatUptime(stats?.system?.uptimeSeconds || 0) }}</span>
+          </div>
+          <div class="info-row">
+            <span class="text-slate-400">Linux Kernel:</span>
+            <span class="font-mono text-white">{{ stats?.system?.release || 'Onbekend' }}</span>
           </div>
         </div>
 
-        <div style="margin-top: 20px; display: flex; gap: 10px;">
-          <router-link to="/analytics" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center;">Bekijk Analyses</router-link>
-          <router-link to="/settings" class="btn btn-secondary btn-sm" style="flex: 1; text-align: center;">Instellingen & Updates</router-link>
+        <div class="mt-6 flex gap-3">
+          <router-link to="/analytics" class="glass-btn glass-btn-secondary flex-1 text-center">
+            Bekijk Analyses
+          </router-link>
+          <router-link to="/settings" class="glass-btn glass-btn-secondary flex-1 text-center">
+            Instellingen
+          </router-link>
         </div>
       </div>
     </div>
@@ -139,18 +184,23 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useSystemStore } from '../stores/system';
+import { useToastStore } from '../stores/toast';
+import { useFormat } from '../composables/useFormat';
+import { RefreshIcon } from '../components/Icons';
 
 const systemStore = useSystemStore();
-const reloading = ref(false);
-const toastMessage = ref('');
-const toastSuccess = ref(true);
+const toastStore = useToastStore();
+const { formatBytes, formatUptime } = useFormat();
 
+const stats = ref(systemStore.stats);
+const reloading = ref(false);
 let timer: any = null;
 
 onMounted(() => {
   systemStore.fetchStats();
   timer = setInterval(() => {
     systemStore.fetchStats();
+    stats.value = systemStore.stats;
   }, 4000);
 });
 
@@ -159,33 +209,61 @@ onUnmounted(() => {
 });
 
 async function handleReloadSingbox() {
+  if (!confirm('Weet je zeker dat je de Sing-box configuratie wilt herladen? Dit kan tijdelijk de VPN-verbindingen onderbreken.')) {
+    return;
+  }
+  
   reloading.value = true;
-  toastMessage.value = '';
   try {
-    const res = await systemStore.reloadSingBox();
-    toastSuccess.value = true;
-    toastMessage.value = res.message;
+    const res = await systemStore.reloadSingbox();
+    toastStore.addToast(res.message || 'Sing-box configuratie succesvol herladen!', 'success');
   } catch (err: any) {
-    toastSuccess.value = false;
-    toastMessage.value = err.response?.data?.error || 'Herladen van Sing-box mislukt.';
+    toastStore.addToast(err.response?.data?.error || 'Herladen mislukt.', 'error');
   } finally {
     reloading.value = false;
-    setTimeout(() => (toastMessage.value = ''), 4000);
   }
 }
-
-function formatBytes(bytes: number) {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
-
-function formatUptime(seconds: number) {
-  const days = Math.floor(seconds / (3600 * 24));
-  const hours = Math.floor((seconds % (3600 * 24)) / 3600);
-  const mins = Math.floor((seconds % 3600) / 60);
-  return `${days}d ${hours}u ${mins}m`;
-}
 </script>
+
+<style scoped>
+/* Service Item */
+.service-item {
+  @apply flex items-center justify-between p-3;
+  @apply bg-slate-800/50 rounded-xl border border-slate-700/50;
+}
+
+/* Info Row */
+.info-row {
+  @apply flex justify-between;
+}
+
+/* Alert Styles */
+.alert {
+  @apply p-4 rounded-xl text-sm font-semibold;
+}
+
+.alert-danger {
+  @apply bg-red-500/15 border border-red-500/30 text-red-400;
+}
+
+.alert-warning {
+  @apply bg-amber-500/15 border border-amber-500/30 text-amber-400;
+}
+
+/* Light Mode Adjustments */
+.light .service-item {
+  @apply bg-slate-100/80 border-slate-200;
+}
+
+.light .info-row {
+  @apply text-slate-600;
+}
+
+.light .alert-danger {
+  @apply bg-red-100 border-red-200 text-red-600;
+}
+
+.light .alert-warning {
+  @apply bg-amber-100 border-amber-200 text-amber-600;
+}
+</style>

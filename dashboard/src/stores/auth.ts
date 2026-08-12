@@ -1,9 +1,10 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { api } from '../api/client';
+import type { AdminUser, LoginCredentials, ChangePasswordPayload } from '../types';
 
 export const useAuthStore = defineStore('auth', () => {
-  const admin = ref<{ id: string; username: string; role: string } | null>(null);
+  const admin = ref<AdminUser | null>(null);
   const isAuthenticated = ref<boolean>(false);
   const loading = ref<boolean>(true);
   const checked = ref<boolean>(false);
@@ -12,7 +13,7 @@ export const useAuthStore = defineStore('auth', () => {
     loading.value = true;
     try {
       const res = await api.get('/auth/me');
-      admin.value = res.data.admin;
+      admin.value = res.data.admin as AdminUser;
       isAuthenticated.value = true;
     } catch {
       admin.value = null;
@@ -25,7 +26,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function login(username: string, password: string) {
     const res = await api.post('/auth/login', { username, password });
-    admin.value = res.data.admin;
+    admin.value = res.data.admin as AdminUser;
     isAuthenticated.value = true;
     checked.value = true;
     return res.data;
