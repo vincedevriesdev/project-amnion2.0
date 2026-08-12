@@ -4,7 +4,7 @@
     <div
       v-if="showMobileMenu"
       @click="showMobileMenu = false"
-      class="fixed inset-0 bg-black/60 z-40 md:hidden"
+      class="fixed inset-0 top-16 bg-black/60 z-40 md:hidden"
     ></div>
 
     <div class="navbar-container">
@@ -297,6 +297,7 @@ onUnmounted(() => {
   @apply px-4 sm:px-6 lg:px-8 py-3;
   @apply flex items-center justify-between;
   @apply max-w-full mx-auto;
+  @apply relative z-50;
 }
 
 /* Brand */
