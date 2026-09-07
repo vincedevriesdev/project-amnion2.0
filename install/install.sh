@@ -74,6 +74,9 @@ fi
 
 # 6. Install System Dependencies & Node.js
 echo -e "${YELLOW}[1/7] Afhankelijkheden en Node.js installeren...${NC}"
+export DEBIAN_FRONTEND=noninteractive
+dpkg --configure -a --force-confdef --force-confold || true
+
 apt-get update -y
 apt-get install -y curl wget git ufw certbot build-essential tar unzip sqlite3
 
