@@ -89,6 +89,7 @@ function updateNetworkSpeeds() {
             } catch {}
 
             if (activeProto) {
+              db.prepare('UPDATE user_protocols SET used_bytes = used_bytes + ? WHERE protocol_type = ?').run(bytesPerUser, activeProto);
               db.prepare('UPDATE protocol_traffic_stats SET used_bytes = used_bytes + ? WHERE protocol_type = ?').run(deltaTotal, activeProto);
             }
           }
@@ -160,7 +161,13 @@ export class StatsService {
     // Protocol distribution based on total cumulative byte volume calibrated to total user usage
     const totalUserBytes = (db.prepare('SELECT SUM(used_bytes) as s FROM users').get() as any)?.s || 0;
 
-    const rawRows = db.prepare('SELECT protocol_type, used_bytes FROM protocol_traffic_stats').all() as any[];
+    // Read actual cumulative protocol data traffic from user_protocols
+    const rawRows = db.prepare(`
+      SELECT protocol_type, SUM(used_bytes) as total
+      FROM user_protocols
+      GROUP BY protocol_type
+    `).all() as any[];
+
     let totalProtoRecorded = 0;
     const rawMap: Record<string, number> = {
       hysteria2: 0,
@@ -168,18 +175,9 @@ export class StatsService {
       vless_reality: 0
     };
     for (const row of rawRows) {
-      const b = row.used_bytes || 0;
+      const b = row.total || 0;
       rawMap[row.protocol_type] = b;
       totalProtoRecorded += b;
-    }
-
-    // Fall back to historical user_protocols totals if protocol_traffic_stats is empty
-    if (totalProtoRecorded === 0) {
-      const upRows = db.prepare('SELECT protocol_type, SUM(used_bytes) as total FROM user_protocols GROUP BY protocol_type').all() as any[];
-      for (const r of upRows) {
-        rawMap[r.protocol_type] = r.total || 0;
-        totalProtoRecorded += (r.total || 0);
-      }
     }
 
     const protocolMap: Record<string, number> = {
