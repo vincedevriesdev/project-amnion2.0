@@ -97,5 +97,14 @@ export function initDatabase() {
         ('hysteria2', 0),
         ('tuic', 0),
         ('vless_reality', 0);
+
+    -- Populate initial protocol traffic distribution from user_protocols history if empty
+    UPDATE protocol_traffic_stats
+    SET used_bytes = (
+        SELECT COALESCE(SUM(used_bytes), 0)
+        FROM user_protocols
+        WHERE user_protocols.protocol_type = protocol_traffic_stats.protocol_type
+    )
+    WHERE (SELECT COALESCE(SUM(used_bytes), 0) FROM protocol_traffic_stats) = 0;
   `);
 }
