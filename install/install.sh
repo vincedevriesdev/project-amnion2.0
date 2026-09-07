@@ -76,8 +76,8 @@ fi
 echo -e "${YELLOW}[1/7] Afhankelijkheden en Node.js installeren...${NC}"
 export DEBIAN_FRONTEND=noninteractive
 dpkg --configure -a --force-confdef --force-confold || true
+apt-get update -y || true
 apt-get --fix-broken install -y || true
-
 apt-get update -y
 apt-get install -y --fix-missing curl wget git ufw certbot tar unzip sqlite3
 
