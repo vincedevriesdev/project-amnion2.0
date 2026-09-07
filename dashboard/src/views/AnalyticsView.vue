@@ -87,9 +87,9 @@
               <span
                 class="w-3 h-3 rounded-full"
                 :class="{
-                  'bg-cyan-500': key === 'hysteria2',
-                  'bg-purple-500': key === 'tuic',
-                  'bg-amber-500': key === 'vless_reality',
+                  'bg-emerald-500': key === 'hysteria2',
+                  'bg-cyan-500': key === 'tuic',
+                  'bg-purple-500': key === 'vless_reality',
                 }"
               ></span>
               <span class="text-white font-medium">

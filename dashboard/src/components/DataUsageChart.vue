@@ -111,7 +111,7 @@ function updateOrCreateChart() {
               if (chartType === 'bar' || chartType === 'line') {
                 return ` Verbruik: ${formatBytes(val)}`;
               }
-              return ` ${context.label}: ${val} verbindingen`;
+              return ` ${context.label}: ${formatBytes(val)}`;
             }
           }
         }

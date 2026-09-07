@@ -89,7 +89,7 @@ function updateNetworkSpeeds() {
             } catch {}
 
             if (activeProto) {
-              db.prepare('UPDATE user_protocols SET used_bytes = used_bytes + ? WHERE protocol_type = ?').run(deltaTotal, activeProto);
+              db.prepare('UPDATE protocol_traffic_stats SET used_bytes = used_bytes + ? WHERE protocol_type = ?').run(deltaTotal, activeProto);
             }
           }
         } catch (dbErr) {
@@ -157,12 +157,21 @@ export class StatsService {
       LIMIT 5
     `).all() as any[];
 
-    // Protocol distribution based on total cumulative byte volume
-    const protocolTraffic = db.prepare(`
-      SELECT protocol_type, SUM(used_bytes) as total_bytes
-      FROM user_protocols
-      GROUP BY protocol_type
-    `).all() as any[];
+    // Protocol distribution based on total cumulative byte volume calibrated to total user usage
+    const totalUserBytes = (db.prepare('SELECT SUM(used_bytes) as s FROM users').get() as any)?.s || 0;
+
+    const rawRows = db.prepare('SELECT protocol_type, used_bytes FROM protocol_traffic_stats').all() as any[];
+    let totalProtoRecorded = 0;
+    const rawMap: Record<string, number> = {
+      hysteria2: 0,
+      tuic: 0,
+      vless_reality: 0
+    };
+    for (const row of rawRows) {
+      const b = row.used_bytes || 0;
+      rawMap[row.protocol_type] = b;
+      totalProtoRecorded += b;
+    }
 
     const protocolMap: Record<string, number> = {
       hysteria2: 0,
@@ -170,15 +179,29 @@ export class StatsService {
       vless_reality: 0
     };
 
+    if (totalUserBytes > 0) {
+      if (totalProtoRecorded > 0) {
+        let distributed = 0;
+        protocolMap.hysteria2 = Math.round((rawMap.hysteria2 / totalProtoRecorded) * totalUserBytes);
+        distributed += protocolMap.hysteria2;
+        protocolMap.tuic = Math.round((rawMap.tuic / totalProtoRecorded) * totalUserBytes);
+        distributed += protocolMap.tuic;
+        protocolMap.vless_reality = Math.max(0, totalUserBytes - distributed);
+      } else {
+        const third = Math.round(totalUserBytes / 3);
+        protocolMap.hysteria2 = third;
+        protocolMap.tuic = third;
+        protocolMap.vless_reality = totalUserBytes - (third * 2);
+      }
+    }
+
     let mostUsedProtocol = 'Geen dataverkeer';
     let maxBytes = -1;
 
-    for (const row of protocolTraffic) {
-      const bytes = row.total_bytes || 0;
-      protocolMap[row.protocol_type] = bytes;
+    for (const [pType, bytes] of Object.entries(protocolMap)) {
       if (bytes > maxBytes && bytes > 0) {
         maxBytes = bytes;
-        mostUsedProtocol = row.protocol_type === 'vless_reality' ? 'VLESS REALITY' : row.protocol_type === 'hysteria2' ? 'Hysteria 2' : 'TUIC v5';
+        mostUsedProtocol = pType === 'vless_reality' ? 'VLESS REALITY' : pType === 'hysteria2' ? 'Hysteria 2' : 'TUIC v5';
       }
     }
 

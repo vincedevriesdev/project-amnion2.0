@@ -87,8 +87,15 @@ export function initDatabase() {
     );
   `);
 
-  // Migration for used_bytes in user_protocols
-  try {
-    db.exec('ALTER TABLE user_protocols ADD COLUMN used_bytes INTEGER DEFAULT 0');
-  } catch {}
+  // Protocol Traffic Stats table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS protocol_traffic_stats (
+        protocol_type TEXT PRIMARY KEY,
+        used_bytes INTEGER DEFAULT 0
+    );
+    INSERT OR IGNORE INTO protocol_traffic_stats (protocol_type, used_bytes) VALUES
+        ('hysteria2', 0),
+        ('tuic', 0),
+        ('vless_reality', 0);
+  `);
 }
