@@ -5,6 +5,7 @@ Native Android-client voor Project Amnion, gebouwd met Kotlin, Jetpack Compose, 
 De app:
 
 - kiest tussen de vooraf ingestelde Nederlandse en Duitse regio;
+- laat per profiel kiezen tussen VLESS + REALITY, Hysteria2 en TUIC;
 - maakt via de mobiele Amnion-API een persoonlijk profiel aan;
 - slaat profiel en apparaat-token AES-GCM-versleuteld op met Android Keystore;
 - bewaart de toegangscode niet;

@@ -1,6 +1,6 @@
 import { CONFIG } from '../../core/config/env.js';
 import { db } from '../../core/database/db.js';
-import { validProtocols } from './mobile.validation.js';
+import { MobileProtocol, validProtocols } from './mobile.validation.js';
 
 interface MobileProfileUser {
   username: string;
@@ -8,10 +8,10 @@ interface MobileProfileUser {
 }
 
 export class MobileProfileService {
-  static build(user: MobileProfileUser) {
+  static build(user: MobileProfileUser, selectedProtocols?: MobileProtocol[]) {
     const host = (CONFIG.PUBLIC_IP || CONFIG.SERVER_DOMAIN).trim();
     const domain = (CONFIG.SERVER_DOMAIN || host).trim();
-    const protocols = validProtocols(CONFIG.MOBILE_PROFILE_PROTOCOLS);
+    const protocols = selectedProtocols || validProtocols(CONFIG.MOBILE_PROFILE_PROTOCOLS);
     const outbounds: any[] = [];
 
     if (protocols.includes('vless_reality')) {

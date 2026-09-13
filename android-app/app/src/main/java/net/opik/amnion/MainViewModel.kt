@@ -12,10 +12,12 @@ import net.opik.amnion.data.ConnectionState
 import net.opik.amnion.data.Region
 import net.opik.amnion.data.SecureProfileStore
 import net.opik.amnion.data.VpnProfile
+import net.opik.amnion.data.VpnProtocol
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val store = SecureProfileStore(application)
     private val api = AmnionApi()
+    private val diagnostics = application.getSharedPreferences("amnion_diagnostics", Application.MODE_PRIVATE)
 
     var profile by mutableStateOf(store.load())
         private set
@@ -23,15 +25,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         Region.entries.firstOrNull { it.id == profile?.regionId } ?: Region.NETHERLANDS
     )
     var displayName by mutableStateOf(profile?.displayName.orEmpty())
+    var selectedProtocol by mutableStateOf(VpnProtocol.fromId(profile?.protocolId))
     var accessCode by mutableStateOf("")
     var loading by mutableStateOf(false)
         private set
-    var errorMessage by mutableStateOf<String?>(null)
+    var errorMessage by mutableStateOf(
+        diagnostics.getString("last_vpn_stage", null)?.takeIf { it.startsWith("fout:") }
+            ?.removePrefix("fout: ")?.let { "De vorige verbinding stopte bij: $it" }
+    )
         private set
     var connectionState by mutableStateOf(ConnectionState.DISCONNECTED)
         private set
 
     fun selectRegion(region: Region) { selectedRegion = region }
+    fun selectProtocol(protocol: VpnProtocol) { selectedProtocol = protocol }
     fun setName(value: String) { displayName = value.take(32) }
     fun updateAccessCode(value: String) { accessCode = value.take(128) }
 
@@ -48,7 +55,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         errorMessage = null
         viewModelScope.launch {
             runCatching {
-                api.register(selectedRegion, displayName.trim(), accessCode, store.installationId())
+                api.register(selectedRegion, displayName.trim(), accessCode, store.installationId(), selectedProtocol)
             }.onSuccess { created ->
                 store.save(created)
                 profile = created
@@ -58,10 +65,35 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun changeProtocol(protocol: VpnProtocol) {
+        val current = profile ?: return
+        if (connectionState == ConnectionState.CONNECTED || connectionState == ConnectionState.CONNECTING) {
+            errorMessage = "Verbreek eerst de VPN om van protocol te wisselen."
+            return
+        }
+        val region = Region.entries.firstOrNull { it.id == current.regionId } ?: return
+        selectedProtocol = protocol
+        loading = true
+        errorMessage = null
+        viewModelScope.launch {
+            runCatching { api.changeProtocol(region, current, protocol) }
+                .onSuccess { updated ->
+                    store.save(updated)
+                    profile = updated
+                }
+                .onFailure {
+                    selectedProtocol = VpnProtocol.fromId(current.protocolId)
+                    errorMessage = it.message ?: "Protocol wisselen is mislukt"
+                }
+            loading = false
+        }
+    }
+
     fun forgetProfile() {
         val oldProfile = profile
         store.clear()
         profile = null
+        selectedProtocol = VpnProtocol.VLESS_REALITY
         connectionState = ConnectionState.DISCONNECTED
         if (oldProfile != null) {
             val oldRegion = Region.entries.firstOrNull { it.id == oldProfile.regionId }
@@ -80,6 +112,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             "error" -> ConnectionState.ERROR
             else -> ConnectionState.DISCONNECTED
         }
-        if (status == "error") errorMessage = message ?: "De VPN-verbinding is gestopt"
+        when (status) {
+            "connecting" -> errorMessage = null
+            "connected" -> {
+                errorMessage = null
+                diagnostics.edit().remove("last_vpn_stage").apply()
+            }
+            "error" -> errorMessage = message ?: "De VPN-verbinding is gestopt"
+        }
     }
 }

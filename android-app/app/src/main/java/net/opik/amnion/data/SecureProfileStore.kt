@@ -28,6 +28,7 @@ class SecureProfileStore(context: Context) {
             put("regionLabel", profile.regionLabel)
             put("displayName", profile.displayName)
             put("deviceToken", profile.deviceToken)
+            put("protocolId", profile.protocolId)
             put("configJson", profile.configJson)
         }.toString()
         prefs.edit().putString("profile", encrypt(json)).apply()
@@ -41,6 +42,7 @@ class SecureProfileStore(context: Context) {
             json.getString("regionLabel"),
             json.getString("displayName"),
             json.getString("deviceToken"),
+            json.optString("protocolId", VpnProtocol.VLESS_REALITY.id),
             json.getString("configJson")
         )
     }.getOrNull()

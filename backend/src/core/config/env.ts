@@ -34,6 +34,6 @@ export const CONFIG = {
   MOBILE_ACCESS_CODE_HASHES: envList(process.env.MOBILE_ACCESS_CODE_HASHES),
   MOBILE_DATA_LIMIT_BYTES: Math.max(0, envInteger(process.env.MOBILE_DATA_LIMIT_BYTES, 0)),
   MOBILE_PROFILE_DAYS: Math.max(0, envInteger(process.env.MOBILE_PROFILE_DAYS, 0)),
-  MOBILE_PROFILE_PROTOCOLS: envList(process.env.MOBILE_PROFILE_PROTOCOLS, ['vless_reality']),
+  MOBILE_PROFILE_PROTOCOLS: envList(process.env.MOBILE_PROFILE_PROTOCOLS, ['vless_reality', 'hysteria2', 'tuic']),
   MOBILE_ALLOW_INSECURE_TLS: envBoolean(process.env.MOBILE_ALLOW_INSECURE_TLS, false),
 };

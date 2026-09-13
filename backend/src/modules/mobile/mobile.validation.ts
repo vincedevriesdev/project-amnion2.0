@@ -58,6 +58,16 @@ export function validProtocols(protocols: string[]): MobileProtocol[] {
   return valid.length > 0 ? valid : ['vless_reality'];
 }
 
+export function normalizeProtocol(value: unknown, allowed: MobileProtocol[]): MobileProtocol {
+  const protocol = value === undefined || value === null || value === ''
+    ? 'vless_reality'
+    : String(value).trim();
+  if (!MOBILE_PROTOCOLS.includes(protocol as MobileProtocol) || !allowed.includes(protocol as MobileProtocol)) {
+    throw new Error('Dit VPN-protocol is niet beschikbaar op deze server');
+  }
+  return protocol as MobileProtocol;
+}
+
 export function slugifyName(value: string): string {
   const slug = value.normalize('NFKD')
     .replace(/[\u0300-\u036f]/g, '')

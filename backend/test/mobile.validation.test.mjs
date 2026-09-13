@@ -7,6 +7,7 @@ import {
   normalizeDevicePublicKey,
   normalizeDisplayName,
   normalizeInstallationId,
+  normalizeProtocol,
   slugifyName,
   validProtocols
 } from '../dist/modules/mobile/mobile.validation.js';
@@ -45,6 +46,9 @@ test('installation hashes are deterministic but secret-dependent', () => {
 test('protocol selection is allowlisted and always has a secure fallback', () => {
   assert.deepEqual(validProtocols(['tuic', 'invalid', 'vless_reality']), ['tuic', 'vless_reality']);
   assert.deepEqual(validProtocols([]), ['vless_reality']);
+  assert.equal(normalizeProtocol(undefined, ['vless_reality', 'tuic']), 'vless_reality');
+  assert.equal(normalizeProtocol('tuic', ['vless_reality', 'tuic']), 'tuic');
+  assert.throws(() => normalizeProtocol('hysteria2', ['vless_reality']), /niet beschikbaar/);
 });
 
 test('slugifies display names for internal usernames', () => {

@@ -91,6 +91,8 @@ export function initDatabase() {
         installation_hash TEXT NOT NULL UNIQUE,
         user_id TEXT NOT NULL UNIQUE,
         display_name TEXT NOT NULL,
+        protocol_type TEXT NOT NULL DEFAULT 'vless_reality'
+            CHECK(protocol_type IN ('hysteria2', 'tuic', 'vless_reality')),
         device_public_key TEXT NULL,
         device_token_hash TEXT NOT NULL UNIQUE,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -108,6 +110,12 @@ export function initDatabase() {
   const protocolColumns = db.pragma('table_info(user_protocols)') as Array<{ name: string }>;
   if (!protocolColumns.some(column => column.name === 'used_bytes')) {
     db.exec('ALTER TABLE user_protocols ADD COLUMN used_bytes INTEGER DEFAULT 0');
+  }
+
+  const mobileColumns = db.pragma('table_info(mobile_devices)') as Array<{ name: string }>;
+  if (!mobileColumns.some(column => column.name === 'protocol_type')) {
+    db.exec(`ALTER TABLE mobile_devices ADD COLUMN protocol_type TEXT NOT NULL
+      DEFAULT 'vless_reality' CHECK(protocol_type IN ('hysteria2', 'tuic', 'vless_reality'))`);
   }
 
   // Protocol Traffic Stats table

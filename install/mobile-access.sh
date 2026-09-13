@@ -46,7 +46,7 @@ case "${action}" in
     upsert_env MOBILE_REGION_ID "${region_id}"
     upsert_env MOBILE_REGION_NAME "${region_name}"
     upsert_env MOBILE_ACCESS_CODE_HASHES "${code_hash}"
-    upsert_env MOBILE_PROFILE_PROTOCOLS "vless_reality"
+    upsert_env MOBILE_PROFILE_PROTOCOLS "vless_reality,hysteria2,tuic"
     printf '%s\n' "${access_code}" > "${CODE_FILE}"
     chmod 0600 "${CODE_FILE}"
     systemctl restart amnion-backend

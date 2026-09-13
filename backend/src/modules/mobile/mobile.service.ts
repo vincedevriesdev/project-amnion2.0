@@ -11,6 +11,7 @@ import {
   normalizeDevicePublicKey,
   normalizeDisplayName,
   normalizeInstallationId,
+  normalizeProtocol,
   slugifyName,
   validProtocols
 } from './mobile.validation.js';
@@ -20,6 +21,7 @@ interface RegisterRequest {
   installationId?: unknown;
   devicePublicKey?: unknown;
   accessCode?: unknown;
+  protocol?: unknown;
 }
 
 type SyncFunction = () => Promise<{ success: boolean; message: string }>;
@@ -53,7 +55,8 @@ export class MobileService {
       profile: {
         format: 'sing-box',
         version: 1,
-        config: MobileProfileService.build(user)
+        protocol: record.protocol_type || 'vless_reality',
+        config: MobileProfileService.build(user, [record.protocol_type || 'vless_reality'])
       }
     };
   }
@@ -67,6 +70,8 @@ export class MobileService {
     const displayName = normalizeDisplayName(payload.displayName);
     const installationId = normalizeInstallationId(payload.installationId);
     const publicKey = normalizeDevicePublicKey(payload.devicePublicKey);
+    const allowedProtocols = validProtocols(CONFIG.MOBILE_PROFILE_PROTOCOLS);
+    const protocol = normalizeProtocol(payload.protocol, allowedProtocols);
     const installationHash = hashInstallationId(installationId, CONFIG.COOKIE_SECRET);
     const existing = db.prepare('SELECT * FROM mobile_devices WHERE installation_hash = ?').get(installationHash) as any;
     const rawDeviceToken = generateSecureToken(32);
@@ -77,13 +82,25 @@ export class MobileService {
       if (!user) {
         db.prepare('DELETE FROM mobile_devices WHERE id = ?').run(existing.id);
       } else {
+        const previousProtocol = existing.protocol_type || 'vless_reality';
+        if (previousProtocol !== protocol) {
+          UsersService.updateUser(existing.user_id, { protocols: [protocol] });
+          const syncResult = await sync();
+          if (!syncResult.success) {
+            UsersService.updateUser(existing.user_id, { protocols: [previousProtocol] });
+            await sync().catch(() => undefined);
+            throw new Error(syncResult.message);
+          }
+        }
         db.prepare(`
           UPDATE mobile_devices
-          SET display_name = ?, device_public_key = ?, device_token_hash = ?,
+          SET display_name = ?, protocol_type = ?, device_public_key = ?, device_token_hash = ?,
               updated_at = CURRENT_TIMESTAMP, last_seen_at = CURRENT_TIMESTAMP
           WHERE id = ?
-        `).run(displayName, publicKey, tokenHash, existing.id);
+        `).run(displayName, protocol, publicKey, tokenHash, existing.id);
         existing.display_name = displayName;
+        existing.protocol_type = protocol;
+        user.protocols = UsersService.getUserById(existing.user_id)?.protocols || user.protocols;
         return this.profileResponse(existing, user, rawDeviceToken);
       }
     }
@@ -97,16 +114,16 @@ export class MobileService {
       internalUsername,
       CONFIG.MOBILE_DATA_LIMIT_BYTES,
       expireAt,
-      validProtocols(CONFIG.MOBILE_PROFILE_PROTOCOLS)
+      [protocol]
     ) as any;
     const deviceId = generateUUID();
 
     try {
       db.prepare(`
         INSERT INTO mobile_devices
-          (id, installation_hash, user_id, display_name, device_public_key, device_token_hash)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `).run(deviceId, installationHash, user.id, displayName, publicKey, tokenHash);
+          (id, installation_hash, user_id, display_name, protocol_type, device_public_key, device_token_hash)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(deviceId, installationHash, user.id, displayName, protocol, publicKey, tokenHash);
 
       const syncResult = await sync();
       if (!syncResult.success) throw new Error(syncResult.message);
@@ -118,7 +135,7 @@ export class MobileService {
       throw error;
     }
 
-    return this.profileResponse({ id: deviceId, display_name: displayName }, user, rawDeviceToken);
+    return this.profileResponse({ id: deviceId, display_name: displayName, protocol_type: protocol }, user, rawDeviceToken);
   }
 
   static refresh(rawDeviceToken: string) {
@@ -130,6 +147,31 @@ export class MobileService {
     if (!user || user.status !== 'active') throw new Error('VPN-profiel is niet actief');
     db.prepare('UPDATE mobile_devices SET last_seen_at = CURRENT_TIMESTAMP WHERE id = ?').run(record.id);
     return this.profileResponse(record, user, rawDeviceToken);
+  }
+
+  static async setProtocol(rawDeviceToken: string, requested: unknown, sync: SyncFunction = () => SystemService.syncAndReloadSingBox()) {
+    this.assertEnabled();
+    const tokenHash = hashCredential(rawDeviceToken);
+    const record = db.prepare('SELECT * FROM mobile_devices WHERE device_token_hash = ?').get(tokenHash) as any;
+    if (!record) throw new Error('Ongeldige of ingetrokken apparaat-token');
+    const user = UsersService.getUserById(record.user_id) as any;
+    if (!user || user.status !== 'active') throw new Error('VPN-profiel is niet actief');
+
+    const previousProtocol = record.protocol_type || 'vless_reality';
+    const protocol = normalizeProtocol(requested, validProtocols(CONFIG.MOBILE_PROFILE_PROTOCOLS));
+    if (protocol !== previousProtocol) {
+      UsersService.updateUser(record.user_id, { protocols: [protocol] });
+      const syncResult = await sync();
+      if (!syncResult.success) {
+        UsersService.updateUser(record.user_id, { protocols: [previousProtocol] });
+        await sync().catch(() => undefined);
+        throw new Error(syncResult.message);
+      }
+      db.prepare(`UPDATE mobile_devices SET protocol_type = ?, updated_at = CURRENT_TIMESTAMP,
+        last_seen_at = CURRENT_TIMESTAMP WHERE id = ?`).run(protocol, record.id);
+      record.protocol_type = protocol;
+    }
+    return this.profileResponse(record, UsersService.getUserById(record.user_id), rawDeviceToken);
   }
 
   static async revoke(rawDeviceToken: string, sync: SyncFunction = () => SystemService.syncAndReloadSingBox()) {

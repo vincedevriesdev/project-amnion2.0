@@ -5,14 +5,21 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager.NameNotFoundException
 import android.net.ConnectivityManager
 import android.net.IpPrefix
 import android.net.Network
 import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.net.VpnService
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.os.ParcelFileDescriptor
+import android.os.Process
+import android.system.OsConstants
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import io.nekohasekai.libbox.BridgeOptions
 import io.nekohasekai.libbox.BridgeSession
@@ -38,6 +45,9 @@ import net.opik.amnion.MainActivity
 import net.opik.amnion.R
 import net.opik.amnion.data.SecureProfileStore
 import java.net.Inet6Address
+import java.net.InetAddress
+import java.net.InetSocketAddress
+import java.net.InterfaceAddress
 import java.net.NetworkInterface
 import java.util.concurrent.atomic.AtomicBoolean
 import io.nekohasekai.libbox.NetworkInterface as BoxNetworkInterface
@@ -46,6 +56,7 @@ class AmnionVpnService : VpnService(), PlatformInterface, CommandServerHandler {
     private var commandServer: CommandServer? = null
     private var tunDescriptor: ParcelFileDescriptor? = null
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
     private val starting = AtomicBoolean(false)
     @Volatile private var stopRequested = false
 
@@ -55,7 +66,10 @@ class AmnionVpnService : VpnService(), PlatformInterface, CommandServerHandler {
             return START_NOT_STICKY
         }
         stopRequested = false
-        showForeground("Verbinden…")
+        // On Android 14+ the systemExempted foreground type is only legal once
+        // this app is an active VPN. Publish a normal starting notification and
+        // promote it after Builder.establish() has created the VPN interface.
+        runCatching { showNotification("Verbinden…", foreground = false) }
         startTunnel()
         return START_NOT_STICKY
     }
@@ -74,8 +88,11 @@ class AmnionVpnService : VpnService(), PlatformInterface, CommandServerHandler {
         Thread {
             try {
                 sendStatus(STATUS_CONNECTING)
+                saveDiagnostic("config-controleren")
                 val profile = SecureProfileStore(this).load() ?: error("Geen VPN-profiel opgeslagen")
                 Libbox.checkConfig(profile.configJson)
+                saveDiagnostic("vpn-engine-starten")
+                Libbox.promoteOOMDraft()
                 val server = CommandServer(this, this)
                 server.start()
                 server.startOrReloadService(profile.configJson, OverrideOptions())
@@ -86,11 +103,15 @@ class AmnionVpnService : VpnService(), PlatformInterface, CommandServerHandler {
                     stopSelf()
                     return@Thread
                 }
-                showForeground("Verbonden met ${profile.regionLabel}")
+                showNotification("Verbonden met ${profile.regionLabel}", foreground = true)
+                saveDiagnostic("verbonden")
                 sendStatus(STATUS_CONNECTED)
-            } catch (error: Exception) {
+            } catch (error: Throwable) {
                 closeEngine()
+                saveDiagnostic("fout: ${error.javaClass.simpleName}: ${error.message.orEmpty()}")
+                Log.e(TAG, "VPN kon niet starten", error)
                 sendStatus(STATUS_ERROR, error.message ?: "VPN kon niet starten")
+                runCatching { getSystemService(NotificationManager::class.java).cancel(NOTIFICATION_ID) }
                 stopSelf()
             } finally {
                 starting.set(false)
@@ -103,6 +124,7 @@ class AmnionVpnService : VpnService(), PlatformInterface, CommandServerHandler {
         closeEngine()
         sendStatus(STATUS_DISCONNECTED)
         stopForeground(STOP_FOREGROUND_REMOVE)
+        runCatching { getSystemService(NotificationManager::class.java).cancel(NOTIFICATION_ID) }
         stopSelf()
     }
 
@@ -118,7 +140,7 @@ class AmnionVpnService : VpnService(), PlatformInterface, CommandServerHandler {
         networkCallback = null
     }
 
-    private fun showForeground(status: String) {
+    private fun showNotification(status: String, foreground: Boolean) {
         val manager = getSystemService(NotificationManager::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             manager.createNotificationChannel(NotificationChannel(
@@ -144,7 +166,13 @@ class AmnionVpnService : VpnService(), PlatformInterface, CommandServerHandler {
             .setOnlyAlertOnce(true)
             .addAction(0, "Verbreken", stopIntent)
             .build()
-        startForeground(NOTIFICATION_ID, notification)
+        if (foreground) startForeground(NOTIFICATION_ID, notification)
+        else manager.notify(NOTIFICATION_ID, notification)
+    }
+
+    private fun saveDiagnostic(stage: String) {
+        getSharedPreferences("amnion_diagnostics", Context.MODE_PRIVATE)
+            .edit().putString("last_vpn_stage", stage).apply()
     }
 
     private fun sendStatus(status: String, message: String? = null) {
@@ -159,24 +187,47 @@ class AmnionVpnService : VpnService(), PlatformInterface, CommandServerHandler {
         val builder = Builder().setSession("Amnion VPN").setMtu(options.mtu)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) builder.setMetered(false)
 
-        val ipv4 = options.inet4Address.collectRoutes()
-        val ipv6 = options.inet6Address.collectRoutes()
-        (ipv4 + ipv6).forEach { builder.addAddress(it.address(), it.prefix()) }
+        while (options.inet4Address.hasNext()) {
+            val address = options.inet4Address.next()
+            builder.addAddress(address.address(), address.prefix())
+        }
+        while (options.inet6Address.hasNext()) {
+            val address = options.inet6Address.next()
+            builder.addAddress(address.address(), address.prefix())
+        }
 
         if (options.autoRoute) {
-            builder.addRoute("0.0.0.0", 0)
-            if (ipv6.isNotEmpty()) builder.addRoute("::", 0)
+            if (options.dnsMode.value != Libbox.DNSModeDisabled) {
+                while (options.dnsServerAddress.hasNext()) builder.addDnsServer(options.dnsServerAddress.next())
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                while (options.inet4RouteAddress.hasNext()) builder.addRoute(options.inet4RouteAddress.next().toIpPrefix())
+                while (options.inet6RouteAddress.hasNext()) builder.addRoute(options.inet6RouteAddress.next().toIpPrefix())
+                while (options.inet4RouteExcludeAddress.hasNext()) builder.excludeRoute(options.inet4RouteExcludeAddress.next().toIpPrefix())
+                while (options.inet6RouteExcludeAddress.hasNext()) builder.excludeRoute(options.inet6RouteExcludeAddress.next().toIpPrefix())
+            } else {
+                while (options.inet4RouteRange.hasNext()) {
+                    val route = options.inet4RouteRange.next()
+                    builder.addRoute(route.address(), route.prefix())
+                }
+                while (options.inet6RouteRange.hasNext()) {
+                    val route = options.inet6RouteRange.next()
+                    builder.addRoute(route.address(), route.prefix())
+                }
+            }
+
+            while (options.includePackage.hasNext()) {
+                try { builder.addAllowedApplication(options.includePackage.next()) }
+                catch (_: NameNotFoundException) { }
+            }
+            while (options.excludePackage.hasNext()) {
+                try { builder.addDisallowedApplication(options.excludePackage.next()) }
+                catch (_: NameNotFoundException) { }
+            }
         }
 
-        val dnsServers = runCatching { options.dnsServerAddress.collectStrings() }.getOrDefault(emptyList())
-        if (dnsServers.isEmpty()) {
-            builder.addDnsServer("172.19.0.2")
-        } else {
-            dnsServers.forEach(builder::addDnsServer)
-        }
-
-        options.includePackage.collectStrings().forEach { runCatching { builder.addAllowedApplication(it) } }
-        options.excludePackage.collectStrings().forEach { runCatching { builder.addDisallowedApplication(it) } }
+        saveDiagnostic("vpn-interface-maken")
         val descriptor = builder.establish() ?: error("Android kon geen VPN-interface maken")
         tunDescriptor = descriptor
         return descriptor.fd
@@ -194,19 +245,30 @@ class AmnionVpnService : VpnService(), PlatformInterface, CommandServerHandler {
     override fun registerMyInterface(name: String?) = Unit
 
     override fun getInterfaces(): NetworkInterfaceIterator {
-        val items = NetworkInterface.getNetworkInterfaces().toList().map { native ->
+        val nativeInterfaces = NetworkInterface.getNetworkInterfaces()?.toList().orEmpty()
+        val items = connectivity().allNetworks.mapNotNull { network ->
+            val links = connectivity().getLinkProperties(network) ?: return@mapNotNull null
+            val capabilities = connectivity().getNetworkCapabilities(network) ?: return@mapNotNull null
+            val native = nativeInterfaces.firstOrNull { it.name == links.interfaceName } ?: return@mapNotNull null
             BoxNetworkInterface().apply {
                 name = native.name
                 index = native.index
                 mtu = runCatching { native.mtu }.getOrDefault(1500)
-                addresses = StringArray(native.interfaceAddresses.mapNotNull { item ->
-                    item.address?.hostAddress?.let { "$it/${item.networkPrefixLength}" }
-                }.iterator())
-                dnsServer = StringArray(emptyList<String>().iterator())
-                gateway = StringArray(emptyList<String>().iterator())
-                flags = 0
-                type = Libbox.InterfaceTypeOther
-                metered = false
+                addresses = StringArray(native.interfaceAddresses.map { it.toPrefix() }.iterator())
+                dnsServer = StringArray(links.dnsServers.mapNotNull { it.hostAddress }.iterator())
+                gateway = StringArray(links.routes.filter { it.destination.prefixLength == 0 }
+                    .mapNotNull { it.gateway?.hostAddress }.iterator())
+                flags = (if (capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET))
+                    OsConstants.IFF_UP or OsConstants.IFF_RUNNING else 0) or
+                    (if (native.isLoopback) OsConstants.IFF_LOOPBACK else 0) or
+                    (if (native.isPointToPoint) OsConstants.IFF_POINTOPOINT else 0)
+                type = when {
+                    capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> Libbox.InterfaceTypeWIFI
+                    capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> Libbox.InterfaceTypeCellular
+                    capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> Libbox.InterfaceTypeEthernet
+                    else -> Libbox.InterfaceTypeOther
+                }
+                metered = !capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
             }
         }
         return InterfaceArray(items.iterator())
@@ -219,7 +281,17 @@ class AmnionVpnService : VpnService(), PlatformInterface, CommandServerHandler {
                 updateDefaultInterface(listener, network)
         }
         networkCallback = callback
-        connectivity().registerDefaultNetworkCallback(callback)
+        val request = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED)
+            .build()
+        when {
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->
+                connectivity().registerBestMatchingNetworkCallback(request, callback, mainHandler)
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.P ->
+                connectivity().requestNetwork(request, callback, mainHandler)
+            else -> connectivity().registerDefaultNetworkCallback(callback, mainHandler)
+        }
         connectivity().activeNetwork?.let { updateDefaultInterface(listener, it) }
     }
 
@@ -238,8 +310,23 @@ class AmnionVpnService : VpnService(), PlatformInterface, CommandServerHandler {
 
     private fun connectivity() = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
-    override fun findConnectionOwner(ipProtocol: Int, sourceAddress: String?, sourcePort: Int, destinationAddress: String?, destinationPort: Int): ConnectionOwner =
-        throw UnsupportedOperationException("Process lookup is niet nodig voor Amnion")
+    override fun findConnectionOwner(ipProtocol: Int, sourceAddress: String?, sourcePort: Int, destinationAddress: String?, destinationPort: Int): ConnectionOwner {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) throw UnsupportedOperationException("Android 10 is vereist")
+        val source = sourceAddress ?: throw IllegalArgumentException("Bronadres ontbreekt")
+        val destination = destinationAddress ?: throw IllegalArgumentException("Doeladres ontbreekt")
+        val uid = connectivity().getConnectionOwnerUid(
+            ipProtocol,
+            InetSocketAddress(source, sourcePort),
+            InetSocketAddress(destination, destinationPort)
+        )
+        if (uid == Process.INVALID_UID) error("Android kon de verbindingseigenaar niet bepalen")
+        val packages = packageManager.getPackagesForUid(uid).orEmpty()
+        return ConnectionOwner().apply {
+            userId = uid
+            userName = packages.firstOrNull().orEmpty()
+            setAndroidPackageNames(StringArray(packages.iterator()))
+        }
+    }
     override fun startNeighborMonitor(listener: NeighborUpdateListener?) = Unit
     override fun closeNeighborMonitor(listener: NeighborUpdateListener?) = Unit
     override fun usePlatformBridge(): Boolean = false
@@ -287,6 +374,7 @@ class AmnionVpnService : VpnService(), PlatformInterface, CommandServerHandler {
         private const val ACTION_STOP = "net.opik.amnion.STOP"
         private const val CHANNEL_ID = "amnion_vpn"
         private const val NOTIFICATION_ID = 1702
+        private const val TAG = "AmnionVpnService"
 
         fun start(context: Context) {
             context.startForegroundService(Intent(context, AmnionVpnService::class.java))
@@ -298,7 +386,12 @@ class AmnionVpnService : VpnService(), PlatformInterface, CommandServerHandler {
     }
 }
 
-private fun io.nekohasekai.libbox.RoutePrefixIterator.collectRoutes(): List<io.nekohasekai.libbox.RoutePrefix> =
-    buildList { while (hasNext()) add(next()) }
+@androidx.annotation.RequiresApi(Build.VERSION_CODES.TIRAMISU)
+private fun io.nekohasekai.libbox.RoutePrefix.toIpPrefix() =
+    IpPrefix(InetAddress.getByName(address()), prefix())
 
-private fun StringIterator.collectStrings(): List<String> = buildList { while (hasNext()) add(next()) }
+private fun InterfaceAddress.toPrefix(): String = if (address is Inet6Address) {
+    "${Inet6Address.getByAddress(address.address).hostAddress}/$networkPrefixLength"
+} else {
+    "${address.hostAddress}/$networkPrefixLength"
+}

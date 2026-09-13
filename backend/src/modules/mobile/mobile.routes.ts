@@ -30,7 +30,8 @@ export async function mobileRoutes(fastify: FastifyInstance) {
           displayName: { type: 'string', minLength: 2, maxLength: 32 },
           installationId: { type: 'string', minLength: 16, maxLength: 128 },
           devicePublicKey: { type: 'string', minLength: 32, maxLength: 256 },
-          accessCode: { type: 'string', minLength: 8, maxLength: 128 }
+          accessCode: { type: 'string', minLength: 8, maxLength: 128 },
+          protocol: { type: 'string', enum: ['vless_reality', 'hysteria2', 'tuic'] }
         }
       }
     }
@@ -67,6 +68,28 @@ export async function mobileRoutes(fastify: FastifyInstance) {
     try {
       await MobileService.revoke(token);
       return reply.send({ status: 'ok' });
+    } catch (error: any) {
+      return reply.status(statusFor(error)).send({ error: error.message });
+    }
+  });
+
+  fastify.post('/profile/protocol', {
+    config: { rateLimit: { max: 20, timeWindow: '1 hour' } },
+    schema: {
+      body: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['protocol'],
+        properties: { protocol: { type: 'string', enum: ['vless_reality', 'hysteria2', 'tuic'] } }
+      }
+    }
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const token = bearerToken(request);
+    if (!token) return reply.status(401).send({ error: 'Apparaat-token ontbreekt' });
+    try {
+      const result = await MobileService.setProtocol(token, (request.body as any).protocol);
+      reply.header('Cache-Control', 'no-store');
+      return reply.send(result);
     } catch (error: any) {
       return reply.status(statusFor(error)).send({ error: error.message });
     }
