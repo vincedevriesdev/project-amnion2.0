@@ -113,11 +113,27 @@ ufw allow 443/tcp || true
 ufw allow 8443/udp || true
 ufw allow 8444/udp || true
 ufw allow 3000/tcp || true
+ufw allow 9443/tcp || true
 ufw --force enable || true
 
+cp "${WORK_DIR}/config/systemd/amnion-backend.service" /etc/systemd/system/amnion-backend.service
+cp "${WORK_DIR}/config/systemd/sing-box.service" /etc/systemd/system/sing-box.service
+cp "${WORK_DIR}/config/systemd/amnion-control-plane.service" /etc/systemd/system/amnion-control-plane.service
 systemctl daemon-reload
 systemctl restart sing-box || true
 systemctl restart amnion-backend || true
+
+DOMAIN="$(sed -n 's/^SERVER_DOMAIN=//p' /etc/amnion/env | head -n 1)"
+if [[ -n "${DOMAIN}" && -f "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" ]]; then
+    if ! grep -q '^CONTROL_PLANE_HTTPS_PORT=' /etc/amnion/env; then
+        printf '%s\n' 'CONTROL_PLANE_HTTPS_PORT=9443' >> /etc/amnion/env
+    fi
+    systemctl enable amnion-control-plane >/dev/null 2>&1 || true
+    systemctl restart amnion-control-plane
+    mkdir -p /etc/letsencrypt/renewal-hooks/deploy
+    printf '%s\n' '#!/usr/bin/env bash' 'systemctl restart amnion-control-plane.service' > /etc/letsencrypt/renewal-hooks/deploy/amnion-control-plane
+    chmod 0755 /etc/letsencrypt/renewal-hooks/deploy/amnion-control-plane
+fi
 
 sleep 3
 

@@ -11,6 +11,7 @@ import { usersRoutes } from './modules/users/users.routes.js';
 import { subscriptionsRoutes } from './modules/subscriptions/subscriptions.routes.js';
 import { statsRoutes } from './modules/stats/stats.routes.js';
 import { systemRoutes } from './modules/system/system.routes.js';
+import { mobileRoutes } from './modules/mobile/mobile.routes.js';
 
 import fastifyStatic from '@fastify/static';
 import path from 'path';
@@ -19,7 +20,9 @@ import fs from 'fs';
 const fastify = Fastify({
   logger: {
     level: 'info'
-  }
+  },
+  // Only local reverse proxies are trusted. Direct clients cannot spoof request.ip.
+  trustProxy: ['127.0.0.1', '::1']
 });
 
 async function startServer() {
@@ -56,6 +59,7 @@ async function startServer() {
     await fastify.register(subscriptionsRoutes, { prefix: '/api/v1/sub' });
     await fastify.register(statsRoutes, { prefix: '/api/v1/stats' });
     await fastify.register(systemRoutes, { prefix: '/api/v1/system' });
+    await fastify.register(mobileRoutes, { prefix: '/api/v1/mobile' });
 
     // Health check endpoint
     fastify.get('/api/v1/health', async () => {

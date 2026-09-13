@@ -30,6 +30,7 @@ Het is speciaal gebouwd om individuen en organisaties te voorzien van een eigen,
 
 - 🚀 **Multi-Protocol Engine**: Beheer **Hysteria 2 (UDP 8443)**, **TUIC v5 (UDP 8444)**, en **VLESS + REALITY (TCP 443)** vanuit één centraal dashboard.
 - 📲 **Naadloze Hiddify Next Integratie**: Automatische generatie van Hiddify-compatibele configuraties, QR-codes en self-healing abonnement-links.
+- **Eigen Android-app**: Een losse Amnion VPN-app met versleutelde profielopslag en keuze tussen meerdere Amnion-regio's. De bestaande Hiddify- en dashboardwerking blijft beschikbaar.
 - ⚡ **Extreem Lichtgewicht**: Geoptimaliseerd voor goedkope VPS-omgevingen met beperkte opslag (minder dan 500 MB schijfruimte en <100 MB RAM-geheugen).
 - 🛡️ **Enterprise Beveiliging**: Argon2id wachtwoord-hashing, cryptografische sessies, rate-limiting (300 req/min algemeen, 30 req/15min login), CSRF-bescherming en geautomatiseerde Let's Encrypt / fallback TLS-certificaten.
 - 📊 **Real-time Monitoring & Analytics**: Live inzicht in CPU, RAM, SSD schijfgebruik, live RX/TX netwerksnelheid, actieve sessies en protocolverdeling.
@@ -71,6 +72,7 @@ Je kunt Project Amnion 2.0 op twee manieren bijwerken naar de nieuwste versie:
 
 ```text
 project-amnion/
+├── android-app/             # Zelfstandige native Android VPN-client
 ├── install/                # Geautomatiseerde installatie- en updatescripts
 ├── backend/                # Fastify TypeScript REST API & Control Daemon
 ├── dashboard/              # Web Dashboard SPA (Vue 3 / Vite / Tailwind)
@@ -89,6 +91,7 @@ project-amnion/
 - [Architectuur Overzicht & Componenten](docs/ARCHITECTURE.md)
 - [Ondersteunde Protocollen & Netwerkcompatibiliteit](docs/PROTOCOLS.md)
 - [REST API Specificatie](docs/API.md)
+- [Android-app & mobiele provisioning](docs/MOBILE_APP.md)
 - [Database Schema Specificatie](docs/DATABASE.md)
 
 ---

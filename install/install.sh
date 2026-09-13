@@ -144,6 +144,13 @@ SING_BOX_CONFIG_PATH=/etc/sing-box/config.json
 SING_BOX_BINARY=/usr/local/bin/sing-box
 SERVER_DOMAIN=${DOMAIN}
 PUBLIC_IP=${PUBLIC_IP}
+MOBILE_PROVISIONING_ENABLED=false
+MOBILE_REGION_ID=standalone
+MOBILE_REGION_NAME=Deze server
+MOBILE_ACCESS_CODE_HASHES=
+MOBILE_PROFILE_PROTOCOLS=vless_reality
+MOBILE_ALLOW_INSECURE_TLS=false
+CONTROL_PLANE_HTTPS_PORT=9443
 EOF
 chmod 0600 /etc/amnion/env
 
@@ -171,16 +178,27 @@ ufw allow 443/tcp || true
 ufw allow 8443/udp || true
 ufw allow 8444/udp || true
 ufw allow 3000/tcp || true
+ufw allow 9443/tcp || true
 ufw --force enable || true
 
 # 13. Systemd Services Setup
 echo -e "${YELLOW}[7/7] Systemd services registreren en starten...${NC}"
 cp /opt/amnion/config/systemd/sing-box.service /etc/systemd/system/
 cp /opt/amnion/config/systemd/amnion-backend.service /etc/systemd/system/
+cp /opt/amnion/config/systemd/amnion-control-plane.service /etc/systemd/system/
 
 systemctl daemon-reload
 systemctl enable --now sing-box
 systemctl enable --now amnion-backend
+if [[ -f "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" ]]; then
+    systemctl enable --now amnion-control-plane
+    mkdir -p /etc/letsencrypt/renewal-hooks/deploy
+    cat <<'EOF' > /etc/letsencrypt/renewal-hooks/deploy/amnion-control-plane
+#!/usr/bin/env bash
+systemctl restart amnion-control-plane.service
+EOF
+    chmod 0755 /etc/letsencrypt/renewal-hooks/deploy/amnion-control-plane
+fi
 
 echo -e "${GREEN}"
 echo "========================================================================"
@@ -188,6 +206,7 @@ echo "        🎉 Project Amnion 2.0 - Installatie Succesvol Afgerond!"
 echo "========================================================================"
 echo -e "${NC}"
 echo -e "  🌐 Dashboard URL:    ${CYAN}http://${DOMAIN}:3000${NC} (of http://${PUBLIC_IP}:3000)"
+echo -e "  🔐 HTTPS Control:    ${CYAN}https://${DOMAIN}:9443${NC}"
 echo -e "  🔑 Standaard Login:  Gebruikersnaam: ${CYAN}admin${NC} | Wachtwoord: ${CYAN}AmnionAdmin2026!${NC}"
 echo -e "  📄 Installatielog:   ${LOG_FILE}"
 echo ""

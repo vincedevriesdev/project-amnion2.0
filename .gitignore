@@ -7,6 +7,13 @@ yarn-error.log*
 # Production builds
 dashboard/dist/
 backend/dist/
+android-app/.gradle/
+android-app/**/build/
+android-app/local.properties
+*.apk
+*.aab
+*.jks
+*.keystore
 
 # Environment and sensitive data
 .env

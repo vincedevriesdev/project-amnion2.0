@@ -1,0 +1,29 @@
+[Unit]
+Description=Project Amnion HTTPS Control Plane
+After=network.target amnion-backend.service
+Requires=amnion-backend.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/amnion/backend
+ExecStart=/usr/bin/node dist/control-plane-proxy.js
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+EnvironmentFile=/etc/amnion/env
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+PrivateDevices=true
+RestrictSUIDSGID=true
+LockPersonality=true
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target

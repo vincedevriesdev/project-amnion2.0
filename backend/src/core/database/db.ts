@@ -85,7 +85,30 @@ export function initDatabase() {
         value TEXT NOT NULL,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS mobile_devices (
+        id TEXT PRIMARY KEY,
+        installation_hash TEXT NOT NULL UNIQUE,
+        user_id TEXT NOT NULL UNIQUE,
+        display_name TEXT NOT NULL,
+        device_public_key TEXT NULL,
+        device_token_hash TEXT NOT NULL UNIQUE,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        last_seen_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_mobile_devices_user_id ON mobile_devices(user_id);
+    CREATE INDEX IF NOT EXISTS idx_mobile_devices_token_hash ON mobile_devices(device_token_hash);
   `);
+
+  // Older installations may already have this column, while clean databases
+  // created from the original schema did not. Keep the migration idempotent.
+  const protocolColumns = db.pragma('table_info(user_protocols)') as Array<{ name: string }>;
+  if (!protocolColumns.some(column => column.name === 'used_bytes')) {
+    db.exec('ALTER TABLE user_protocols ADD COLUMN used_bytes INTEGER DEFAULT 0');
+  }
 
   // Protocol Traffic Stats table
   db.exec(`

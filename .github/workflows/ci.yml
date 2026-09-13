@@ -1,0 +1,42 @@
+name: Build and test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend-dashboard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            dashboard/package-lock.json
+      - name: Backend dependencies and tests
+        working-directory: backend
+        run: npm ci && npm test && npm audit --audit-level=high
+      - name: Dashboard dependencies and build
+        working-directory: dashboard
+        run: npm ci && npm run build && npm audit --audit-level=high
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+      - uses: android-actions/setup-android@v3
+      - name: Android lint and debug APK
+        working-directory: android-app
+        run: ./gradlew lintDebug assembleDebug --no-daemon
