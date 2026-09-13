@@ -66,10 +66,9 @@ class AmnionVpnService : VpnService(), PlatformInterface, CommandServerHandler {
             return START_NOT_STICKY
         }
         stopRequested = false
-        // On Android 14+ the systemExempted foreground type is only legal once
-        // this app is an active VPN. Publish a normal starting notification and
-        // promote it after Builder.establish() has created the VPN interface.
-        runCatching { showNotification("Verbinden…", foreground = false) }
+        // Android requires foreground promotion within a few seconds of
+        // startForegroundService(), including while libbox is still starting.
+        showNotification("Verbinden…", foreground = true)
         startTunnel()
         return START_NOT_STICKY
     }
@@ -187,42 +186,53 @@ class AmnionVpnService : VpnService(), PlatformInterface, CommandServerHandler {
         val builder = Builder().setSession("Amnion VPN").setMtu(options.mtu)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) builder.setMetered(false)
 
-        while (options.inet4Address.hasNext()) {
-            val address = options.inet4Address.next()
+        val inet4Address = options.inet4Address
+        while (inet4Address.hasNext()) {
+            val address = inet4Address.next()
             builder.addAddress(address.address(), address.prefix())
         }
-        while (options.inet6Address.hasNext()) {
-            val address = options.inet6Address.next()
+        val inet6Address = options.inet6Address
+        while (inet6Address.hasNext()) {
+            val address = inet6Address.next()
             builder.addAddress(address.address(), address.prefix())
         }
 
         if (options.autoRoute) {
             if (options.dnsMode.value != Libbox.DNSModeDisabled) {
-                while (options.dnsServerAddress.hasNext()) builder.addDnsServer(options.dnsServerAddress.next())
+                val dnsServerAddress = options.dnsServerAddress
+                while (dnsServerAddress.hasNext()) builder.addDnsServer(dnsServerAddress.next())
             }
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                while (options.inet4RouteAddress.hasNext()) builder.addRoute(options.inet4RouteAddress.next().toIpPrefix())
-                while (options.inet6RouteAddress.hasNext()) builder.addRoute(options.inet6RouteAddress.next().toIpPrefix())
-                while (options.inet4RouteExcludeAddress.hasNext()) builder.excludeRoute(options.inet4RouteExcludeAddress.next().toIpPrefix())
-                while (options.inet6RouteExcludeAddress.hasNext()) builder.excludeRoute(options.inet6RouteExcludeAddress.next().toIpPrefix())
+                val inet4Routes = options.inet4RouteAddress
+                while (inet4Routes.hasNext()) builder.addRoute(inet4Routes.next().toIpPrefix())
+                val inet6Routes = options.inet6RouteAddress
+                while (inet6Routes.hasNext()) builder.addRoute(inet6Routes.next().toIpPrefix())
+                val inet4Excludes = options.inet4RouteExcludeAddress
+                while (inet4Excludes.hasNext()) builder.excludeRoute(inet4Excludes.next().toIpPrefix())
+                val inet6Excludes = options.inet6RouteExcludeAddress
+                while (inet6Excludes.hasNext()) builder.excludeRoute(inet6Excludes.next().toIpPrefix())
             } else {
-                while (options.inet4RouteRange.hasNext()) {
-                    val route = options.inet4RouteRange.next()
+                val inet4Routes = options.inet4RouteRange
+                while (inet4Routes.hasNext()) {
+                    val route = inet4Routes.next()
                     builder.addRoute(route.address(), route.prefix())
                 }
-                while (options.inet6RouteRange.hasNext()) {
-                    val route = options.inet6RouteRange.next()
+                val inet6Routes = options.inet6RouteRange
+                while (inet6Routes.hasNext()) {
+                    val route = inet6Routes.next()
                     builder.addRoute(route.address(), route.prefix())
                 }
             }
 
-            while (options.includePackage.hasNext()) {
-                try { builder.addAllowedApplication(options.includePackage.next()) }
+            val includePackage = options.includePackage
+            while (includePackage.hasNext()) {
+                try { builder.addAllowedApplication(includePackage.next()) }
                 catch (_: NameNotFoundException) { }
             }
-            while (options.excludePackage.hasNext()) {
-                try { builder.addDisallowedApplication(options.excludePackage.next()) }
+            val excludePackage = options.excludePackage
+            while (excludePackage.hasNext()) {
+                try { builder.addDisallowedApplication(excludePackage.next()) }
                 catch (_: NameNotFoundException) { }
             }
         }
@@ -234,7 +244,9 @@ class AmnionVpnService : VpnService(), PlatformInterface, CommandServerHandler {
     }
 
     override fun usePlatformAutoDetectInterfaceControl(): Boolean = true
-    override fun autoDetectInterfaceControl(fd: Int) { protect(fd) }
+    override fun autoDetectInterfaceControl(fd: Int) {
+        protect(fd)
+    }
     override fun useProcFS(): Boolean = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q
     override fun underNetworkExtension(): Boolean = false
     override fun includeAllNetworks(): Boolean = false

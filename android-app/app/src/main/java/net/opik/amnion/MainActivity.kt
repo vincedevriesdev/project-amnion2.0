@@ -52,6 +52,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -149,6 +150,9 @@ private fun AmnionTheme(content: @Composable () -> Unit) {
 
 @Composable
 private fun AmnionScreen(viewModel: MainViewModel, onConnect: () -> Unit, onDisconnect: () -> Unit) {
+    val hasProfile = viewModel.profile != null
+    val scrollState = rememberScrollState()
+    LaunchedEffect(hasProfile) { scrollState.scrollTo(0) }
     Surface(modifier = Modifier.fillMaxSize(), color = Night, contentColor = White) {
         Box(
             modifier = Modifier.fillMaxSize().background(
@@ -170,12 +174,12 @@ private fun AmnionScreen(viewModel: MainViewModel, onConnect: () -> Unit, onDisc
             )
             Column(
                 Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()
-                    .verticalScroll(rememberScrollState()).padding(horizontal = 22.dp, vertical = 18.dp)
+                    .verticalScroll(scrollState).padding(horizontal = 22.dp, vertical = 18.dp)
             ) {
                 BrandHeader()
                 Spacer(Modifier.height(27.dp))
-                AnimatedContent(targetState = viewModel.profile != null, label = "profile") { hasProfile ->
-                    if (hasProfile) ConnectedHome(viewModel, onConnect, onDisconnect) else SetupCard(viewModel)
+                AnimatedContent(targetState = hasProfile, label = "profile") { hasStoredProfile ->
+                    if (hasStoredProfile) ConnectedHome(viewModel, onConnect, onDisconnect) else SetupCard(viewModel)
                 }
             }
         }
