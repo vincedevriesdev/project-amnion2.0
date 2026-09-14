@@ -23,31 +23,64 @@ class SecureProfileStore(context: Context) {
     }
 
     fun save(profile: VpnProfile) {
-        val json = JSONObject().apply {
-            put("regionId", profile.regionId)
-            put("regionLabel", profile.regionLabel)
-            put("displayName", profile.displayName)
-            put("deviceToken", profile.deviceToken)
-            put("protocolId", profile.protocolId)
-            put("configJson", profile.configJson)
-        }.toString()
-        prefs.edit().putString("profile", encrypt(json)).apply()
+        val profiles = all().toMutableMap().apply { put(profile.regionId, profile) }
+        val json = JSONObject()
+        profiles.forEach { (regionId, stored) -> json.put(regionId, toJson(stored)) }
+        prefs.edit()
+            .putString(PROFILES_KEY, encrypt(json.toString()))
+            .putString(ACTIVE_REGION_KEY, profile.regionId)
+            .remove(LEGACY_PROFILE_KEY)
+            .apply()
     }
 
-    fun load(): VpnProfile? = runCatching {
-        val encoded = prefs.getString("profile", null) ?: return null
-        val json = JSONObject(decrypt(encoded))
-        VpnProfile(
-            json.getString("regionId"),
-            json.getString("regionLabel"),
-            json.getString("displayName"),
-            json.getString("deviceToken"),
-            json.optString("protocolId", VpnProtocol.VLESS_REALITY.id),
-            json.getString("configJson")
-        )
-    }.getOrNull()
+    fun load(): VpnProfile? {
+        val profiles = all()
+        val active = prefs.getString(ACTIVE_REGION_KEY, null)
+        return profiles[active] ?: profiles.values.firstOrNull()
+    }
 
-    fun clear() = prefs.edit().remove("profile").apply()
+    fun load(regionId: String): VpnProfile? = all()[regionId]
+
+    fun all(): Map<String, VpnProfile> {
+        val current = runCatching {
+            val encoded = prefs.getString(PROFILES_KEY, null) ?: return@runCatching emptyMap()
+            val json = JSONObject(decrypt(encoded))
+            buildMap {
+                json.keys().forEach { regionId -> put(regionId, fromJson(json.getJSONObject(regionId))) }
+            }
+        }.getOrDefault(emptyMap())
+        if (current.isNotEmpty()) return current
+
+        // Transparently migrate the single-region storage used by v1/v2.
+        val legacy = runCatching {
+            val encoded = prefs.getString(LEGACY_PROFILE_KEY, null) ?: return@runCatching null
+            fromJson(JSONObject(decrypt(encoded)))
+        }.getOrNull() ?: return emptyMap()
+        val json = JSONObject().put(legacy.regionId, toJson(legacy))
+        prefs.edit().putString(PROFILES_KEY, encrypt(json.toString()))
+            .putString(ACTIVE_REGION_KEY, legacy.regionId).remove(LEGACY_PROFILE_KEY).apply()
+        return mapOf(legacy.regionId to legacy)
+    }
+
+    fun clear() = prefs.edit().remove(LEGACY_PROFILE_KEY).remove(PROFILES_KEY).remove(ACTIVE_REGION_KEY).apply()
+
+    private fun toJson(profile: VpnProfile) = JSONObject().apply {
+        put("regionId", profile.regionId)
+        put("regionLabel", profile.regionLabel)
+        put("displayName", profile.displayName)
+        put("deviceToken", profile.deviceToken)
+        put("protocolId", profile.protocolId)
+        put("configJson", profile.configJson)
+    }
+
+    private fun fromJson(json: JSONObject) = VpnProfile(
+        json.getString("regionId"),
+        json.getString("regionLabel"),
+        json.getString("displayName"),
+        json.getString("deviceToken"),
+        json.optString("protocolId", VpnProtocol.VLESS_REALITY.id),
+        json.getString("configJson")
+    )
 
     private fun key(): SecretKey {
         val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
@@ -79,5 +112,10 @@ class SecureProfileStore(context: Context) {
         return cipher.doFinal(encrypted).toString(Charsets.UTF_8)
     }
 
-    companion object { private const val KEY_ALIAS = "amnion_profile_key_v1" }
+    companion object {
+        private const val KEY_ALIAS = "amnion_profile_key_v1"
+        private const val LEGACY_PROFILE_KEY = "profile"
+        private const val PROFILES_KEY = "region_profiles_v3"
+        private const val ACTIVE_REGION_KEY = "active_region_v3"
+    }
 }

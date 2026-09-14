@@ -52,6 +52,7 @@ export interface ProtocolDistribution {
 export interface TopUser {
   uuid: string;
   username: string;
+  mobile_display_name?: string | null;
   used_bytes: number;
   data_limit_bytes: number;
   status: string;
@@ -95,6 +96,7 @@ export interface UserProtocol {
 export interface VpnUser {
   id: string;
   username: string;
+  mobile_display_name?: string | null;
   uuid: string;
   status: 'active' | 'disabled' | 'expired';
   data_limit_bytes: number;

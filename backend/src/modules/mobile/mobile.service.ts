@@ -5,7 +5,6 @@ import { UsersService } from '../users/users.service.js';
 import { SystemService } from '../system/system.service.js';
 import { MobileProfileService } from './mobile-profile.service.js';
 import {
-  accessCodeMatches,
   hashCredential,
   hashInstallationId,
   normalizeDevicePublicKey,
@@ -20,7 +19,7 @@ interface RegisterRequest {
   displayName?: unknown;
   installationId?: unknown;
   devicePublicKey?: unknown;
-  accessCode?: unknown;
+  accessCode?: unknown; // ignored; retained for backwards-compatible clients
   protocol?: unknown;
 }
 
@@ -29,7 +28,6 @@ type SyncFunction = () => Promise<{ success: boolean; message: string }>;
 export class MobileService {
   static assertEnabled() {
     if (!CONFIG.MOBILE_PROVISIONING_ENABLED) throw new Error('Mobiele provisioning is niet ingeschakeld');
-    if (CONFIG.MOBILE_ACCESS_CODE_HASHES.length === 0) throw new Error('Mobiele provisioning is nog niet geconfigureerd');
   }
 
   static region() {
@@ -63,10 +61,6 @@ export class MobileService {
 
   static async register(payload: RegisterRequest, sync: SyncFunction = () => SystemService.syncAndReloadSingBox()) {
     this.assertEnabled();
-    if (!accessCodeMatches(payload.accessCode, CONFIG.MOBILE_ACCESS_CODE_HASHES)) {
-      throw new Error('Ongeldige toegangscode');
-    }
-
     const displayName = normalizeDisplayName(payload.displayName);
     const installationId = normalizeInstallationId(payload.installationId);
     const publicKey = normalizeDevicePublicKey(payload.devicePublicKey);
@@ -82,12 +76,17 @@ export class MobileService {
       if (!user) {
         db.prepare('DELETE FROM mobile_devices WHERE id = ?').run(existing.id);
       } else {
-        const previousProtocol = existing.protocol_type || 'vless_reality';
-        if (previousProtocol !== protocol) {
-          UsersService.updateUser(existing.user_id, { protocols: [protocol] });
+        const enabledProtocols = (UsersService.getUserById(existing.user_id)?.protocols || [])
+          .filter((item: any) => item.is_enabled)
+          .map((item: any) => item.protocol_type)
+          .sort();
+        const expectedProtocols = [...allowedProtocols].sort();
+        if (JSON.stringify(enabledProtocols) !== JSON.stringify(expectedProtocols)) {
+          const previousProtocols = enabledProtocols;
+          UsersService.updateUser(existing.user_id, { protocols: allowedProtocols });
           const syncResult = await sync();
           if (!syncResult.success) {
-            UsersService.updateUser(existing.user_id, { protocols: [previousProtocol] });
+            UsersService.updateUser(existing.user_id, { protocols: previousProtocols });
             await sync().catch(() => undefined);
             throw new Error(syncResult.message);
           }
@@ -114,7 +113,7 @@ export class MobileService {
       internalUsername,
       CONFIG.MOBILE_DATA_LIMIT_BYTES,
       expireAt,
-      [protocol]
+      allowedProtocols
     ) as any;
     const deviceId = generateUUID();
 
@@ -149,7 +148,7 @@ export class MobileService {
     return this.profileResponse(record, user, rawDeviceToken);
   }
 
-  static async setProtocol(rawDeviceToken: string, requested: unknown, sync: SyncFunction = () => SystemService.syncAndReloadSingBox()) {
+  static async setProtocol(rawDeviceToken: string, requested: unknown) {
     this.assertEnabled();
     const tokenHash = hashCredential(rawDeviceToken);
     const record = db.prepare('SELECT * FROM mobile_devices WHERE device_token_hash = ?').get(tokenHash) as any;
@@ -157,16 +156,8 @@ export class MobileService {
     const user = UsersService.getUserById(record.user_id) as any;
     if (!user || user.status !== 'active') throw new Error('VPN-profiel is niet actief');
 
-    const previousProtocol = record.protocol_type || 'vless_reality';
     const protocol = normalizeProtocol(requested, validProtocols(CONFIG.MOBILE_PROFILE_PROTOCOLS));
-    if (protocol !== previousProtocol) {
-      UsersService.updateUser(record.user_id, { protocols: [protocol] });
-      const syncResult = await sync();
-      if (!syncResult.success) {
-        UsersService.updateUser(record.user_id, { protocols: [previousProtocol] });
-        await sync().catch(() => undefined);
-        throw new Error(syncResult.message);
-      }
+    if (protocol !== (record.protocol_type || 'vless_reality')) {
       db.prepare(`UPDATE mobile_devices SET protocol_type = ?, updated_at = CURRENT_TIMESTAMP,
         last_seen_at = CURRENT_TIMESTAMP WHERE id = ?`).run(protocol, record.id);
       record.protocol_type = protocol;

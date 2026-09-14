@@ -11,14 +11,12 @@ class AmnionApi {
     suspend fun register(
         region: Region,
         displayName: String,
-        accessCode: String,
         installationId: String,
         protocol: VpnProtocol
     ): VpnProfile =
         withContext(Dispatchers.IO) {
             val body = JSONObject().apply {
                 put("displayName", displayName)
-                put("accessCode", accessCode)
                 put("installationId", installationId)
                 put("protocol", protocol.id)
             }
@@ -35,6 +33,22 @@ class AmnionApi {
                 configJson = profile.getJSONObject("config").toString()
             )
         }
+
+    suspend fun publicIpv4(): String = withContext(Dispatchers.IO) {
+        val connection = URL("https://api.ipify.org?format=json").openConnection() as HttpsURLConnection
+        connection.requestMethod = "GET"
+        connection.connectTimeout = 8_000
+        connection.readTimeout = 8_000
+        connection.setRequestProperty("Accept", "application/json")
+        connection.setRequestProperty("Cache-Control", "no-cache")
+        connection.setRequestProperty("User-Agent", "Amnion-Android/${net.opik.amnion.BuildConfig.VERSION_NAME}")
+        try {
+            if (connection.responseCode !in 200..299) error("IP-controle gaf ${connection.responseCode}")
+            JSONObject(connection.inputStream.bufferedReader().use { it.readText() }).getString("ip")
+        } finally {
+            connection.disconnect()
+        }
+    }
 
     suspend fun refresh(region: Region, profile: VpnProfile): VpnProfile = withContext(Dispatchers.IO) {
         val response = request("${region.apiUrl}/profile/refresh", JSONObject(), profile.deviceToken)

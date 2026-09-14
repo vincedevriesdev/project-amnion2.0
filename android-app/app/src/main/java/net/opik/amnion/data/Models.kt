@@ -2,9 +2,16 @@ package net.opik.amnion.data
 
 import net.opik.amnion.BuildConfig
 
-enum class Region(val id: String, val label: String, val city: String, val code: String, val apiUrl: String) {
-    NETHERLANDS("nl", "Nederland", "Amsterdam", "NL", BuildConfig.NL_API_URL),
-    GERMANY("de", "Duitsland", "Frankfurt", "DE", BuildConfig.DE_API_URL)
+enum class Region(
+    val id: String,
+    val label: String,
+    val city: String,
+    val code: String,
+    val apiUrl: String,
+    val exitIpv4: String
+) {
+    NETHERLANDS("nl", "Nederland", "Amsterdam", "NL", BuildConfig.NL_API_URL, "37.148.192.166"),
+    GERMANY("de", "Duitsland", "Frankfurt", "DE", BuildConfig.DE_API_URL, "217.154.169.67")
 }
 
 enum class VpnProtocol(

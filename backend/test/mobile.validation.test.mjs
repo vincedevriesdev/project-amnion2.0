@@ -1,8 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  accessCodeMatches,
-  hashCredential,
   hashInstallationId,
   normalizeDevicePublicKey,
   normalizeDisplayName,
@@ -28,13 +26,6 @@ test('validates installation identifiers and public keys', () => {
   assert.throws(() => normalizeInstallationId('../etc/passwd'), /Ongeldige/);
   assert.equal(normalizeDevicePublicKey(null), null);
   assert.equal(normalizeDevicePublicKey('A'.repeat(44)), 'A'.repeat(44));
-});
-
-test('compares access codes against SHA-256 hashes', () => {
-  const expected = hashCredential('CorrectHorseBatteryStaple');
-  assert.equal(accessCodeMatches('CorrectHorseBatteryStaple', [expected]), true);
-  assert.equal(accessCodeMatches('wrong-password', [expected]), false);
-  assert.equal(accessCodeMatches('CorrectHorseBatteryStaple', ['not-a-hash']), false);
 });
 
 test('installation hashes are deterministic but secret-dependent', () => {

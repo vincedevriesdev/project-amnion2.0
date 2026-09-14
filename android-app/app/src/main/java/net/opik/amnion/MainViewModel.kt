@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import net.opik.amnion.data.AmnionApi
 import net.opik.amnion.data.ConnectionState
@@ -24,9 +25,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     var selectedRegion by mutableStateOf(
         Region.entries.firstOrNull { it.id == profile?.regionId } ?: Region.NETHERLANDS
     )
+        private set
     var displayName by mutableStateOf(profile?.displayName.orEmpty())
     var selectedProtocol by mutableStateOf(VpnProtocol.fromId(profile?.protocolId))
-    var accessCode by mutableStateOf("")
+        private set
     var loading by mutableStateOf(false)
         private set
     var errorMessage by mutableStateOf(
@@ -36,71 +38,100 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         private set
     var connectionState by mutableStateOf(ConnectionState.DISCONNECTED)
         private set
+    var detectedIpv4 by mutableStateOf<String?>(null)
+        private set
+    var ipCheckMessage by mutableStateOf("Verbind om je VPN-IP te controleren")
+        private set
+    var ipCheckPassed by mutableStateOf<Boolean?>(null)
+        private set
 
-    fun selectRegion(region: Region) { selectedRegion = region }
-    fun selectProtocol(protocol: VpnProtocol) { selectedProtocol = protocol }
     fun setName(value: String) { displayName = value.take(32) }
-    fun updateAccessCode(value: String) { accessCode = value.take(128) }
 
-    fun provision() {
+    fun activate() {
         if (displayName.trim().length < 2) {
             errorMessage = "Vul een naam van minimaal twee tekens in."
-            return
-        }
-        if (accessCode.length < 8) {
-            errorMessage = "Vul je Amnion-toegangscode in."
             return
         }
         loading = true
         errorMessage = null
         viewModelScope.launch {
             runCatching {
-                api.register(selectedRegion, displayName.trim(), accessCode, store.installationId(), selectedProtocol)
-            }.onSuccess { created ->
-                store.save(created)
-                profile = created
-                accessCode = ""
-            }.onFailure { errorMessage = it.message ?: "Registreren is mislukt" }
+                api.register(selectedRegion, displayName.trim(), store.installationId(), selectedProtocol)
+            }.onSuccess(::activateProfile)
+                .onFailure { errorMessage = it.message ?: "Amnion activeren is mislukt" }
+            loading = false
+        }
+    }
+
+    fun changeRegion(region: Region) {
+        val current = profile ?: return
+        if (region.id == current.regionId || loading) return
+        if (connectionState == ConnectionState.CONNECTED || connectionState == ConnectionState.CONNECTING) {
+            errorMessage = "Verbreek eerst de VPN om van land te wisselen."
+            return
+        }
+        val previousRegion = selectedRegion
+        selectedRegion = region
+        loading = true
+        errorMessage = null
+        clearIpCheck()
+        viewModelScope.launch {
+            runCatching {
+                val cached = store.load(region.id)
+                val prepared = if (cached == null) {
+                    api.register(region, displayName.trim(), store.installationId(), selectedProtocol)
+                } else {
+                    runCatching { api.refresh(region, cached) }.getOrElse {
+                        api.register(region, displayName.trim(), store.installationId(), selectedProtocol)
+                    }
+                }
+                if (prepared.protocolId == selectedProtocol.id) prepared
+                else api.changeProtocol(region, prepared, selectedProtocol)
+            }.onSuccess(::activateProfile)
+                .onFailure {
+                    selectedRegion = previousRegion
+                    errorMessage = it.message ?: "Wisselen van land is mislukt"
+                }
             loading = false
         }
     }
 
     fun changeProtocol(protocol: VpnProtocol) {
         val current = profile ?: return
+        if (protocol.id == current.protocolId || loading) return
         if (connectionState == ConnectionState.CONNECTED || connectionState == ConnectionState.CONNECTING) {
             errorMessage = "Verbreek eerst de VPN om van protocol te wisselen."
             return
         }
-        val region = Region.entries.firstOrNull { it.id == current.regionId } ?: return
+        val previousProtocol = selectedProtocol
         selectedProtocol = protocol
         loading = true
         errorMessage = null
+        clearIpCheck()
         viewModelScope.launch {
-            runCatching { api.changeProtocol(region, current, protocol) }
-                .onSuccess { updated ->
-                    store.save(updated)
-                    profile = updated
-                }
+            runCatching { api.changeProtocol(selectedRegion, current, protocol) }
+                .onSuccess(::activateProfile)
                 .onFailure {
-                    selectedProtocol = VpnProtocol.fromId(current.protocolId)
+                    selectedProtocol = previousProtocol
                     errorMessage = it.message ?: "Protocol wisselen is mislukt"
                 }
             loading = false
         }
     }
 
-    fun forgetProfile() {
-        val oldProfile = profile
+    fun resetUser() {
+        if (connectionState == ConnectionState.CONNECTED || connectionState == ConnectionState.CONNECTING) return
+        val oldProfiles = store.all()
         store.clear()
         profile = null
+        selectedRegion = Region.NETHERLANDS
         selectedProtocol = VpnProtocol.VLESS_REALITY
-        connectionState = ConnectionState.DISCONNECTED
-        if (oldProfile != null) {
-            val oldRegion = Region.entries.firstOrNull { it.id == oldProfile.regionId }
-            if (oldRegion != null) viewModelScope.launch {
-                // Local removal must always work; server cleanup is best-effort
-                // in case the selected server is temporarily offline.
-                runCatching { api.revoke(oldRegion, oldProfile) }
+        displayName = ""
+        errorMessage = null
+        clearIpCheck()
+        oldProfiles.forEach { (regionId, stored) ->
+            Region.entries.firstOrNull { it.id == regionId }?.let { region ->
+                viewModelScope.launch { runCatching { api.revoke(region, stored) } }
             }
         }
     }
@@ -113,12 +144,66 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             else -> ConnectionState.DISCONNECTED
         }
         when (status) {
-            "connecting" -> errorMessage = null
+            "connecting" -> {
+                errorMessage = null
+                detectedIpv4 = null
+                ipCheckPassed = null
+                ipCheckMessage = "VPN-route wordt gecontroleerd..."
+            }
             "connected" -> {
                 errorMessage = null
                 diagnostics.edit().remove("last_vpn_stage").apply()
+                verifyExitIp()
             }
-            "error" -> errorMessage = message ?: "De VPN-verbinding is gestopt"
+            "error" -> {
+                errorMessage = message ?: "De VPN-verbinding is gestopt"
+                ipCheckPassed = false
+                ipCheckMessage = "VPN-route kon niet worden gecontroleerd"
+            }
+            else -> clearIpCheck()
         }
+    }
+
+    private fun activateProfile(updated: VpnProfile) {
+        store.save(updated)
+        profile = updated
+        displayName = updated.displayName
+        selectedRegion = Region.entries.firstOrNull { it.id == updated.regionId } ?: selectedRegion
+        selectedProtocol = VpnProtocol.fromId(updated.protocolId)
+    }
+
+    private fun verifyExitIp() {
+        val expectedRegion = selectedRegion
+        detectedIpv4 = null
+        ipCheckPassed = null
+        ipCheckMessage = "Extern IPv4 controleren..."
+        viewModelScope.launch {
+            var lastIp: String? = null
+            repeat(3) { attempt ->
+                if (connectionState != ConnectionState.CONNECTED) return@launch
+                if (attempt > 0) delay(1_500)
+                val result = runCatching { api.publicIpv4() }
+                lastIp = result.getOrNull()
+                if (lastIp == expectedRegion.exitIpv4) {
+                    detectedIpv4 = lastIp
+                    ipCheckPassed = true
+                    ipCheckMessage = "IPv4 loopt via ${expectedRegion.label}"
+                    return@launch
+                }
+            }
+            detectedIpv4 = lastIp
+            ipCheckPassed = if (lastIp == null) null else false
+            ipCheckMessage = if (lastIp == null) {
+                "IP-controle tijdelijk niet bereikbaar"
+            } else {
+                "Let op: dit is niet het IP van ${expectedRegion.label}"
+            }
+        }
+    }
+
+    private fun clearIpCheck() {
+        detectedIpv4 = null
+        ipCheckPassed = null
+        ipCheckMessage = "Verbind om je VPN-IP te controleren"
     }
 }

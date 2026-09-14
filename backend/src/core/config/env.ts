@@ -31,7 +31,6 @@ export const CONFIG = {
   MOBILE_PROVISIONING_ENABLED: envBoolean(process.env.MOBILE_PROVISIONING_ENABLED, false),
   MOBILE_REGION_ID: process.env.MOBILE_REGION_ID || 'standalone',
   MOBILE_REGION_NAME: process.env.MOBILE_REGION_NAME || 'Deze server',
-  MOBILE_ACCESS_CODE_HASHES: envList(process.env.MOBILE_ACCESS_CODE_HASHES),
   MOBILE_DATA_LIMIT_BYTES: Math.max(0, envInteger(process.env.MOBILE_DATA_LIMIT_BYTES, 0)),
   MOBILE_PROFILE_DAYS: Math.max(0, envInteger(process.env.MOBILE_PROFILE_DAYS, 0)),
   MOBILE_PROFILE_PROTOCOLS: envList(process.env.MOBILE_PROFILE_PROTOCOLS, ['vless_reality', 'hysteria2', 'tuic']),

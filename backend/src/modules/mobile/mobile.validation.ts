@@ -42,16 +42,6 @@ export function hashInstallationId(value: string, secret: string): string {
   return crypto.createHmac('sha256', secret).update(value, 'utf8').digest('hex');
 }
 
-export function accessCodeMatches(accessCode: unknown, allowedHashes: string[]): boolean {
-  if (typeof accessCode !== 'string' || accessCode.length < 8 || accessCode.length > 128) return false;
-  const actual = Buffer.from(hashCredential(accessCode.trim()), 'hex');
-  return allowedHashes.some(candidate => {
-    if (!/^[a-fA-F0-9]{64}$/.test(candidate)) return false;
-    const expected = Buffer.from(candidate, 'hex');
-    return expected.length === actual.length && crypto.timingSafeEqual(actual, expected);
-  });
-}
-
 export function validProtocols(protocols: string[]): MobileProtocol[] {
   const configured = new Set(protocols);
   const valid = MOBILE_PROTOCOLS.filter(protocol => configured.has(protocol));

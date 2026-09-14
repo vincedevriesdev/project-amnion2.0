@@ -29,30 +29,19 @@ case "${action}" in
   enable)
     region_id="${2:-standalone}"
     region_name="${3:-Deze server}"
-    access_code="${4:-}"
     if [[ ! "${region_id}" =~ ^[a-z0-9-]{2,24}$ ]]; then
       echo "Regio-id mag alleen kleine letters, cijfers en streepjes bevatten." >&2
       exit 1
     fi
-    if [[ -z "${access_code}" ]]; then
-      access_code="$(openssl rand -base64 24 | tr -dc 'A-Za-z0-9' | head -c 24)"
-    fi
-    if [[ "${#access_code}" -lt 8 ]]; then
-      echo "Toegangscode moet minimaal 8 tekens lang zijn." >&2
-      exit 1
-    fi
-    code_hash="$(printf '%s' "${access_code}" | sha256sum | awk '{print $1}')"
     upsert_env MOBILE_PROVISIONING_ENABLED true
     upsert_env MOBILE_REGION_ID "${region_id}"
     upsert_env MOBILE_REGION_NAME "${region_name}"
-    upsert_env MOBILE_ACCESS_CODE_HASHES "${code_hash}"
+    upsert_env MOBILE_ACCESS_CODE_HASHES ""
     upsert_env MOBILE_PROFILE_PROTOCOLS "vless_reality,hysteria2,tuic"
-    printf '%s\n' "${access_code}" > "${CODE_FILE}"
-    chmod 0600 "${CODE_FILE}"
+    rm -f "${CODE_FILE}"
     systemctl restart amnion-backend
     echo "Mobiele provisioning is ingeschakeld voor ${region_name}."
-    echo "Eenmalige toegangscode: ${access_code}"
-    echo "Alleen root kan de lokale kopie lezen in ${CODE_FILE}."
+    echo "De app vraagt alleen om een naam; er is geen toegangscode nodig."
     ;;
   disable)
     upsert_env MOBILE_PROVISIONING_ENABLED false
@@ -64,7 +53,7 @@ case "${action}" in
     grep -E '^MOBILE_(PROVISIONING_ENABLED|REGION_ID|REGION_NAME|PROFILE_PROTOCOLS)=' "${ENV_FILE}" || true
     ;;
   *)
-    echo "Gebruik: $0 enable <regio-id> <regio-naam> [toegangscode] | disable | status" >&2
+    echo "Gebruik: $0 enable <regio-id> <regio-naam> | disable | status" >&2
     exit 1
     ;;
 esac

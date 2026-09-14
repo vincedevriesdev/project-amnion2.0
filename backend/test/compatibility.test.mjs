@@ -4,7 +4,6 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import crypto from 'node:crypto';
 
 const dbPath = path.join(os.tmpdir(), `amnion-test-${process.pid}.db`);
 process.env.NODE_ENV = 'test';
@@ -15,7 +14,6 @@ process.env.MOBILE_PROFILE_PROTOCOLS = 'vless_reality,hysteria2,tuic';
 process.env.MOBILE_PROVISIONING_ENABLED = 'true';
 process.env.MOBILE_REGION_ID = 'test';
 process.env.MOBILE_REGION_NAME = 'Testregio';
-process.env.MOBILE_ACCESS_CODE_HASHES = crypto.createHash('sha256').update('test-access-code').digest('hex');
 
 const { db, initDatabase } = await import('../dist/core/database/db.js');
 const { UsersService } = await import('../dist/modules/users/users.service.js');
@@ -76,8 +74,7 @@ test('every selectable mobile protocol passes an installed sing-box validator', 
 test('mobile registration is idempotent and rotates the device token', async () => {
   const payload = {
     displayName: 'Mobiele Tester',
-    installationId: '550e8400-e29b-41d4-a716-446655440000',
-    accessCode: 'test-access-code'
+    installationId: '550e8400-e29b-41d4-a716-446655440000'
   };
   const fakeSync = async () => ({ success: true, message: 'test' });
   const first = await MobileService.register(payload, fakeSync);
@@ -89,25 +86,29 @@ test('mobile registration is idempotent and rotates the device token', async () 
   assert.equal(first.profile.protocol, 'vless_reality');
   assert.equal(second.profile.protocol, 'hysteria2');
   assert.equal(second.profile.config.route.final, 'hysteria2');
+  assert.equal(second.user.status, 'active');
   assert.equal(db.prepare('SELECT COUNT(*) AS count FROM mobile_devices').get().count, 1);
+  const enabled = db.prepare(`SELECT protocol_type FROM user_protocols
+    WHERE user_id = (SELECT user_id FROM mobile_devices LIMIT 1) AND is_enabled = 1
+    ORDER BY protocol_type`).all().map(row => row.protocol_type);
+  assert.deepEqual(enabled, ['hysteria2', 'tuic', 'vless_reality']);
 });
 
 test('an authenticated mobile device can change protocol without changing its token', async () => {
   const payload = {
     displayName: 'Protocol Tester',
     installationId: '550e8400-e29b-41d4-a716-446655440009',
-    accessCode: 'test-access-code',
     protocol: 'vless_reality'
   };
   const fakeSync = async () => ({ success: true, message: 'test' });
   const created = await MobileService.register(payload, fakeSync);
-  const changed = await MobileService.setProtocol(created.deviceToken, 'tuic', fakeSync);
+  const changed = await MobileService.setProtocol(created.deviceToken, 'tuic');
   assert.equal(changed.profile.protocol, 'tuic');
   assert.equal(changed.profile.config.route.final, 'tuic');
   assert.equal(MobileService.refresh(created.deviceToken).profile.protocol, 'tuic');
 });
 
-test('mobile HTTP routes expose region metadata and reject a bad access code', async () => {
+test('mobile HTTP routes expose region metadata and allow name-only registration', async () => {
   const Fastify = (await import('fastify')).default;
   const fastifyRateLimit = (await import('@fastify/rate-limit')).default;
   const app = Fastify({ logger: false });
@@ -119,17 +120,20 @@ test('mobile HTTP routes expose region metadata and reject a bad access code', a
     assert.equal(region.statusCode, 200);
     assert.deepEqual(region.json().protocols, ['hysteria2', 'tuic', 'vless_reality']);
 
-    const rejected = await app.inject({
+    await MobileService.register({
+      displayName: 'Vince',
+      installationId: '550e8400-e29b-41d4-a716-446655440001'
+    }, async () => ({ success: true, message: 'test' }));
+    const registered = await app.inject({
       method: 'POST',
       url: '/api/v1/mobile/register',
       payload: {
         displayName: 'Vince',
-        installationId: '550e8400-e29b-41d4-a716-446655440001',
-        accessCode: 'wrong-code'
+        installationId: '550e8400-e29b-41d4-a716-446655440001'
       }
     });
-    assert.equal(rejected.statusCode, 401);
-    assert.equal(rejected.json().error, 'Ongeldige toegangscode');
+    assert.equal(registered.statusCode, 201);
+    assert.equal(registered.json().user.displayName, 'Vince');
   } finally {
     await app.close();
   }

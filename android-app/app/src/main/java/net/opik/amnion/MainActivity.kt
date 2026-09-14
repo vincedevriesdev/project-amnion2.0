@@ -65,7 +65,6 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -218,56 +217,28 @@ private fun SetupCard(viewModel: MainViewModel) {
     Column {
         Text("Jouw internet.\nJouw keuze.", color = White, fontSize = 38.sp, lineHeight = 42.sp, fontWeight = FontWeight.Black)
         Spacer(Modifier.height(10.dp))
-        Text("Kies een locatie en het protocol dat bij jouw verbinding past.", color = Muted, lineHeight = 22.sp)
+        Text("Vul alleen je naam in. Daarna kun je vrij wisselen tussen alle locaties en protocollen.", color = Muted, lineHeight = 22.sp)
         Spacer(Modifier.height(25.dp))
         GlassCard {
-            SectionLabel("1", "Kies een server")
-            Spacer(Modifier.height(13.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Region.entries.forEach { region ->
-                    RegionCard(region, viewModel.selectedRegion == region, Modifier.weight(1f)) {
-                        viewModel.selectRegion(region)
-                    }
-                }
-            }
-            Spacer(Modifier.height(23.dp))
-            SectionLabel("2", "Kies een protocol")
-            Spacer(Modifier.height(12.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                VpnProtocol.entries.forEach { protocol ->
-                    ProtocolCard(protocol, viewModel.selectedProtocol == protocol) {
-                        viewModel.selectProtocol(protocol)
-                    }
-                }
-            }
-            Spacer(Modifier.height(23.dp))
-            SectionLabel("3", "Maak jouw profiel")
+            SectionLabel("1", "Wie gebruikt Amnion?")
             Spacer(Modifier.height(12.dp))
             AmnionInput(viewModel.displayName, viewModel::setName, "Jouw naam", "Bijvoorbeeld Vince")
-            Spacer(Modifier.height(12.dp))
-            AmnionInput(
-                viewModel.accessCode,
-                viewModel::updateAccessCode,
-                "Toegangscode",
-                "Ontvangen van de beheerder",
-                password = true
-            )
             ErrorMessage(viewModel.errorMessage)
             Spacer(Modifier.height(18.dp))
             Button(
-                onClick = viewModel::provision,
+                onClick = viewModel::activate,
                 enabled = !viewModel.loading,
                 modifier = Modifier.fillMaxWidth().height(55.dp),
                 shape = RoundedCornerShape(17.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Purple)
             ) {
                 if (viewModel.loading) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = Color.White)
-                else Text("Profiel veilig aanmaken", color = Color.White, fontWeight = FontWeight.Bold)
+                else Text("Amnion starten", color = Color.White, fontWeight = FontWeight.Bold)
             }
         }
         Spacer(Modifier.height(17.dp))
         Text(
-            "Je toegangscode wordt alleen voor registratie gebruikt en nooit op je telefoon bewaard.",
+            "Je naam wordt alleen gebruikt zodat de beheerder kan zien wie verbonden is. Er is geen account of wachtwoord nodig.",
             color = Muted, textAlign = TextAlign.Center, fontSize = 12.sp, lineHeight = 17.sp,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)
         )
@@ -302,25 +273,23 @@ private fun ConnectedHome(viewModel: MainViewModel, onConnect: () -> Unit, onDis
         ConnectOrb(state) { if (connected || connecting) onDisconnect() else onConnect() }
         Spacer(Modifier.height(28.dp))
         GlassCard {
-            Text("ACTIEVE ROUTE", color = Muted, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
-            Spacer(Modifier.height(14.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                RegionBadge(region?.code ?: profile.regionId.uppercase(), large = true)
-                Spacer(Modifier.width(13.dp))
-                Column {
-                    Text(profile.regionLabel, color = White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                    Text(region?.city ?: "Amnion-node", color = Muted, fontSize = 13.sp)
+                Column(Modifier.weight(1f)) {
+                    Text("VPN-locatie", color = White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    Text(if (connected || connecting) "Verbreek om van land te wisselen" else "Kies direct je gewenste uitgang", color = Muted, fontSize = 12.sp)
                 }
-                Spacer(Modifier.weight(1f))
-                Box(Modifier.size(10.dp).background(if (connected) Mint else Muted.copy(alpha = .65f), CircleShape))
+                if (viewModel.loading) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = Cyan)
             }
-            Spacer(Modifier.height(17.dp))
-            Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = .07f)))
-            Spacer(Modifier.height(16.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                DetailTile("PROTOCOL", protocol.shortLabel, Modifier.weight(1f))
-                DetailTile("POORT", protocol.port.toString(), Modifier.weight(1f))
-                DetailTile("PROFIEL", profile.displayName, Modifier.weight(1f))
+            Spacer(Modifier.height(13.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Region.entries.forEach { option ->
+                    RegionCard(
+                        option,
+                        selected = option == region,
+                        modifier = Modifier.weight(1f),
+                        enabled = !connected && !connecting && !viewModel.loading
+                    ) { viewModel.changeRegion(option) }
+                }
             }
         }
         Spacer(Modifier.height(14.dp))
@@ -344,12 +313,56 @@ private fun ConnectedHome(viewModel: MainViewModel, onConnect: () -> Unit, onDis
                 }
             }
         }
+        Spacer(Modifier.height(14.dp))
+        GlassCard {
+            Text("ACTIEVE ROUTE", color = Muted, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.4.sp)
+            Spacer(Modifier.height(14.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RegionBadge(region?.code ?: profile.regionId.uppercase(), large = true)
+                Spacer(Modifier.width(13.dp))
+                Column {
+                    Text(profile.regionLabel, color = White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    Text(region?.city ?: "Amnion-node", color = Muted, fontSize = 13.sp)
+                }
+                Spacer(Modifier.weight(1f))
+                Box(Modifier.size(10.dp).background(if (connected) Mint else Muted.copy(alpha = .65f), CircleShape))
+            }
+            Spacer(Modifier.height(17.dp))
+            Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = .07f)))
+            Spacer(Modifier.height(16.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                DetailTile("PROTOCOL", protocol.shortLabel, Modifier.weight(1f))
+                DetailTile("POORT", protocol.port.toString(), Modifier.weight(1f))
+                DetailTile("GEBRUIKER", profile.displayName, Modifier.weight(1f))
+            }
+            Spacer(Modifier.height(16.dp))
+            Surface(
+                color = when (viewModel.ipCheckPassed) {
+                    true -> Mint.copy(alpha = .10f)
+                    false -> Danger.copy(alpha = .10f)
+                    null -> Color.White.copy(alpha = .04f)
+                },
+                shape = RoundedCornerShape(13.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(Modifier.padding(13.dp)) {
+                    Text("EXTERN IPv4", color = Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = .7.sp)
+                    Spacer(Modifier.height(4.dp))
+                    Text(viewModel.detectedIpv4 ?: if (connected) "Controleren..." else region?.exitIpv4.orEmpty(), color = White, fontWeight = FontWeight.Bold)
+                    Text(viewModel.ipCheckMessage, color = when (viewModel.ipCheckPassed) {
+                        true -> Mint
+                        false -> Danger
+                        null -> Muted
+                    }, fontSize = 11.sp)
+                }
+            }
+        }
         ErrorMessage(viewModel.errorMessage)
         Spacer(Modifier.height(9.dp))
-        TextButton(onClick = {
-            if (connected || connecting) onDisconnect()
-            viewModel.forgetProfile()
-        }) { Text("Ander profiel instellen", color = Muted) }
+        TextButton(
+            enabled = !connected && !connecting && !viewModel.loading,
+            onClick = viewModel::resetUser
+        ) { Text("Naam wijzigen", color = Muted) }
     }
 }
 
@@ -438,12 +451,13 @@ private fun PowerIcon(color: Color, active: Boolean, modifier: Modifier = Modifi
 }
 
 @Composable
-private fun RegionCard(region: Region, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
+private fun RegionCard(region: Region, selected: Boolean, modifier: Modifier, enabled: Boolean = true, onClick: () -> Unit) {
     val border = if (selected) Purple else Color.White.copy(alpha = .08f)
     Column(
         modifier.clip(RoundedCornerShape(17.dp))
             .background(if (selected) Purple.copy(alpha = .14f) else Color.White.copy(alpha = .035f))
-            .border(1.dp, border, RoundedCornerShape(17.dp)).clickable(onClick = onClick).padding(15.dp)
+            .border(1.dp, border, RoundedCornerShape(17.dp)).alpha(if (enabled || selected) 1f else .5f)
+            .clickable(enabled = enabled && !selected, onClick = onClick).padding(15.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             RegionBadge(region.code)
@@ -534,13 +548,12 @@ private fun ErrorMessage(message: String?) {
 }
 
 @Composable
-private fun AmnionInput(value: String, onValueChange: (String) -> Unit, label: String, placeholder: String, password: Boolean = false) {
+private fun AmnionInput(value: String, onValueChange: (String) -> Unit, label: String, placeholder: String) {
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         label = { Text(label) },
         placeholder = { Text(placeholder, color = Muted.copy(alpha = .65f)) },
-        visualTransformation = if (password) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
         singleLine = true,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),

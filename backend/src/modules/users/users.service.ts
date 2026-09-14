@@ -12,6 +12,7 @@ export class UsersService {
     return users.map(user => {
       const protocols = db.prepare('SELECT protocol_type, is_enabled FROM user_protocols WHERE user_id = ?').all(user.id);
       const subToken = db.prepare('SELECT token FROM subscription_tokens WHERE user_id = ?').get(user.id) as any;
+      const mobileDevice = db.prepare('SELECT display_name FROM mobile_devices WHERE user_id = ?').get(user.id) as any;
 
       // Find active protocol from recent log matches or sub token access
       const activeProtocol = recentLogs.lastProtocol || 'Standby';
@@ -19,6 +20,7 @@ export class UsersService {
       return {
         ...user,
         protocols,
+        mobile_display_name: mobileDevice?.display_name || null,
         activeProtocol,
         subscriptionToken: subToken ? subToken.token : null
       };

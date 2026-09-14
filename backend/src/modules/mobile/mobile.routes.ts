@@ -10,7 +10,7 @@ function bearerToken(request: FastifyRequest): string | null {
 
 function statusFor(error: Error): number {
   if (error.message.includes('niet ingeschakeld') || error.message.includes('nog niet geconfigureerd')) return 404;
-  if (error.message.includes('toegangscode') || error.message.includes('token')) return 401;
+  if (error.message.includes('token')) return 401;
   return 400;
 }
 
@@ -20,16 +20,18 @@ export async function mobileRoutes(fastify: FastifyInstance) {
   }, async () => MobileService.region());
 
   fastify.post('/register', {
-    config: { rateLimit: { max: 5, timeWindow: '1 hour' } },
+    config: { rateLimit: { max: 10, timeWindow: '1 hour' } },
     schema: {
       body: {
         type: 'object',
         additionalProperties: false,
-        required: ['displayName', 'installationId', 'accessCode'],
+        required: ['displayName', 'installationId'],
         properties: {
           displayName: { type: 'string', minLength: 2, maxLength: 32 },
           installationId: { type: 'string', minLength: 16, maxLength: 128 },
           devicePublicKey: { type: 'string', minLength: 32, maxLength: 256 },
+          // Kept optional so older APKs remain compatible after the public
+          // name-only onboarding was introduced.
           accessCode: { type: 'string', minLength: 8, maxLength: 128 },
           protocol: { type: 'string', enum: ['vless_reality', 'hysteria2', 'tuic'] }
         }

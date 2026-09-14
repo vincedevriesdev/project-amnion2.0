@@ -163,6 +163,7 @@
             </td>
             <td>
               <div class="font-bold text-white">{{ user.username }}</div>
+              <div v-if="user.mobile_display_name" class="text-xs text-violet-300">App: {{ user.mobile_display_name }}</div>
               <div class="font-mono text-xs text-slate-400 truncate max-w-xs">{{ user.uuid }}</div>
             </td>
             <td>

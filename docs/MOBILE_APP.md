@@ -1,25 +1,24 @@
-# Amnion Android-app en mobiele provisioning
+# Amnion Android-app en mobiele toegang
 
-De map `android-app/` bevat een zelfstandige Android VPN-client. Het bestaande webdashboard, de abonnementlinks en Hiddify-profielen zijn niet vervangen of visueel aangepast. Mobiele accounts gebruiken dezelfde gebruikers- en sing-box-laag, maar krijgen een afzonderlijke, optioneel ingeschakelde provisioning-API.
+De map `android-app/` bevat een zelfstandige Android VPN-client. Het bestaande webdashboard, de abonnementlinks en Hiddify-profielen blijven werken. Mobiele apparaten gebruiken dezelfde gebruikers- en sing-box-laag via een afzonderlijke, optioneel ingeschakelde API.
 
 ## Architectuur
 
-- De app laat de gebruiker een vooraf ingebouwde regio en VPN-protocol kiezen en vraagt om een weergavenaam en toegangscode.
-- Registratie verloopt uitsluitend via TLS op `https://<domein>:9443/api/v1/mobile`.
-- De toegangscode wordt niet op de telefoon bewaard. Op de server staat alleen een SHA-256-hash van een willekeurige code.
-- Na registratie bewaart Android de apparaat-token en sing-box-config versleuteld met een niet-exporteerbare Android Keystore-sleutel.
-- Het VPN-verkeer loopt via Android `VpnService` en sing-box/libbox. De gebruiker kan kiezen tussen VLESS + REALITY, Hysteria2 en TUIC en later wisselen zonder opnieuw te registreren.
-- Poort 9443 geeft alleen de mobiele API door; dashboard- en beheerroutes zijn daar niet beschikbaar.
+- De app vraagt bij de eerste start alleen om een herkenbare naam.
+- Daarna kan de gebruiker zonder nieuwe handmatige registratie tussen Nederland, Duitsland, VLESS + REALITY, Hysteria2 en TUIC wisselen.
+- De app maakt de benodigde toegang per regio automatisch aan. Alle drie protocollen worden server-side voor die gebruiker geactiveerd, zodat protocolwissels geen sing-box-herstart vereisen.
+- Nieuwe appregistraties zijn bewust openbaar voor bezitters van de APK en worden begrensd met IP-rate-limits. Er is geen appwachtwoord of toegangscode.
+- Android bewaart per regio de apparaat-token en sing-box-configuratie versleuteld met een niet-exporteerbare Android Keystore-sleutel.
+- Na verbinden vraagt de app via de VPN-route het externe IPv4-adres op en vergelijkt dat met de gekozen uitgang.
+- De mobiele API gebruikt TLS op `https://<domein>:9443/api/v1/mobile`. Poort 9443 geeft geen dashboard- of beheerroutes door.
 
 ## API activeren
 
 Na een installatie of update:
 
 ```bash
-bash /opt/amnion/install/mobile-access.sh enable nl "Nederland" "EEN-LANGE-WILLEKEURIGE-CODE"
+bash /opt/amnion/install/mobile-access.sh enable nl "Nederland"
 ```
-
-Gebruik op alle regio's dezelfde code als één app-code toegang tot alle regio's moet geven. Laat het laatste argument weg om een sterke code te laten genereren. De eenmalige lokale kopie staat alleen voor root leesbaar in `/root/amnion-mobile-access-code.txt`.
 
 Andere acties:
 
@@ -28,7 +27,7 @@ bash /opt/amnion/install/mobile-access.sh status
 bash /opt/amnion/install/mobile-access.sh disable
 ```
 
-Uitschakelen verwijdert de lokale kopie van de toegangscode en blokkeert nieuwe API-aanvragen. Bestaande normale Amnion/Hiddify-profielen blijven werken.
+Uitschakelen blokkeert nieuwe mobiele API-aanvragen. Bestaande normale Amnion/Hiddify-profielen blijven werken.
 
 ## Omgevingsvariabelen
 
@@ -37,22 +36,20 @@ Uitschakelen verwijdert de lokale kopie van de toegangscode en blokkeert nieuwe 
 | `MOBILE_PROVISIONING_ENABLED` | `false` | Zet de mobiele API aan of uit |
 | `MOBILE_REGION_ID` | `standalone` | Stabiele korte regio-id, bijvoorbeeld `nl` |
 | `MOBILE_REGION_NAME` | `Deze server` | Naam die de app toont |
-| `MOBILE_ACCESS_CODE_HASHES` | leeg | Komma-gescheiden SHA-256-hashes |
 | `MOBILE_PROFILE_PROTOCOLS` | alle drie | Allowlist: `vless_reality,hysteria2,tuic` |
-| `MOBILE_DATA_LIMIT_BYTES` | `0` | Limiet per mobiel profiel; 0 is onbeperkt |
+| `MOBILE_DATA_LIMIT_BYTES` | `0` | Limiet per mobiele gebruiker; 0 is onbeperkt |
 | `MOBILE_PROFILE_DAYS` | `0` | Geldigheidsduur; 0 verloopt niet automatisch |
 | `CONTROL_PLANE_HTTPS_PORT` | `9443` | TLS-poort van de mobiele control-plane |
 
 ## Endpoints
 
 - `GET /api/v1/mobile/region` — publieke regiometadata, met rate-limit.
-- `POST /api/v1/mobile/register` — toegangscode vereist; maximaal vijf pogingen per IP per uur.
-- `POST /api/v1/mobile/profile/refresh` — bearer apparaat-token vereist.
-- `POST /api/v1/mobile/profile/revoke` — trekt het mobiele profiel in en verwijdert de bijbehorende VPN-gebruiker.
+- `POST /api/v1/mobile/register` — naam en installatie-id vereist; maximaal tien pogingen per IP per uur.
+- `POST /api/v1/mobile/profile/refresh` — beperkte bearer apparaat-token vereist.
+- `POST /api/v1/mobile/profile/protocol` — selecteert het gewenste protocol zonder sing-box-herstart.
+- `POST /api/v1/mobile/profile/revoke` — trekt de regionale apparaattoegang in en verwijdert de mobiele gebruiker.
 
-- `POST /api/v1/mobile/profile/protocol` — wisselt het protocol; bearer apparaat-token vereist.
-
-Antwoorden met profielen hebben `Cache-Control: no-store`. De reverse proxy vertrouwt geen door de internetclient aangeleverde IP-headers.
+Antwoorden met VPN-configuraties hebben `Cache-Control: no-store`. De reverse proxy vertrouwt geen door de internetclient aangeleverde IP-headers.
 
 ## Android bouwen
 
@@ -72,7 +69,7 @@ AMNION_SIGNING_KEY_ALIAS
 AMNION_SIGNING_KEY_PASSWORD
 ```
 
-Daarna bouwt `./gradlew assembleRelease` de release-APK. De vaste regiourls staan als buildconfiguratie in `android-app/app/build.gradle.kts`.
+Daarna bouwt `./gradlew assembleRelease` de release-APK. De vaste regiourls en verwachte uitgangs-IP's staan in de Android-code.
 
 ## Certificaatvernieuwing
 
