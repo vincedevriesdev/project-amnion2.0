@@ -187,13 +187,17 @@ class AmnionVpnService : VpnService(), PlatformInterface, CommandServerHandler {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) builder.setMetered(false)
 
         val inet4Address = options.inet4Address
+        var hasInet4Address = false
         while (inet4Address.hasNext()) {
             val address = inet4Address.next()
+            hasInet4Address = true
             builder.addAddress(address.address(), address.prefix())
         }
         val inet6Address = options.inet6Address
+        var hasInet6Address = false
         while (inet6Address.hasNext()) {
             val address = inet6Address.next()
+            hasInet6Address = true
             builder.addAddress(address.address(), address.prefix())
         }
 
@@ -205,23 +209,39 @@ class AmnionVpnService : VpnService(), PlatformInterface, CommandServerHandler {
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 val inet4Routes = options.inet4RouteAddress
-                while (inet4Routes.hasNext()) builder.addRoute(inet4Routes.next().toIpPrefix())
+                if (inet4Routes.hasNext()) {
+                    while (inet4Routes.hasNext()) builder.addRoute(inet4Routes.next().toIpPrefix())
+                } else if (hasInet4Address) {
+                    builder.addRoute("0.0.0.0", 0)
+                }
                 val inet6Routes = options.inet6RouteAddress
-                while (inet6Routes.hasNext()) builder.addRoute(inet6Routes.next().toIpPrefix())
+                if (inet6Routes.hasNext()) {
+                    while (inet6Routes.hasNext()) builder.addRoute(inet6Routes.next().toIpPrefix())
+                } else if (hasInet6Address) {
+                    builder.addRoute("::", 0)
+                }
                 val inet4Excludes = options.inet4RouteExcludeAddress
                 while (inet4Excludes.hasNext()) builder.excludeRoute(inet4Excludes.next().toIpPrefix())
                 val inet6Excludes = options.inet6RouteExcludeAddress
                 while (inet6Excludes.hasNext()) builder.excludeRoute(inet6Excludes.next().toIpPrefix())
             } else {
                 val inet4Routes = options.inet4RouteRange
-                while (inet4Routes.hasNext()) {
-                    val route = inet4Routes.next()
-                    builder.addRoute(route.address(), route.prefix())
+                if (inet4Routes.hasNext()) {
+                    while (inet4Routes.hasNext()) {
+                        val route = inet4Routes.next()
+                        builder.addRoute(route.address(), route.prefix())
+                    }
+                } else if (hasInet4Address) {
+                    builder.addRoute("0.0.0.0", 0)
                 }
                 val inet6Routes = options.inet6RouteRange
-                while (inet6Routes.hasNext()) {
-                    val route = inet6Routes.next()
-                    builder.addRoute(route.address(), route.prefix())
+                if (inet6Routes.hasNext()) {
+                    while (inet6Routes.hasNext()) {
+                        val route = inet6Routes.next()
+                        builder.addRoute(route.address(), route.prefix())
+                    }
+                } else if (hasInet6Address) {
+                    builder.addRoute("::", 0)
                 }
             }
 
