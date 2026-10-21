@@ -11,7 +11,14 @@ export async function statsRoutes(fastify: FastifyInstance) {
     }
   });
 
-  fastify.get('/overview', async () => {
+  fastify.get('/overview', {
+    config: {
+      rateLimit: {
+        max: 60,
+        timeWindow: '1 minute'
+      }
+    }
+  }, async () => {
     return StatsService.getSystemMetrics();
   });
 }

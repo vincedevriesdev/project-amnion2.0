@@ -12,7 +12,14 @@ export async function usersRoutes(fastify: FastifyInstance) {
     }
   });
 
-  fastify.get('/', async () => {
+  fastify.get('/', {
+    config: {
+      rateLimit: {
+        max: 60,
+        timeWindow: '1 minute'
+      }
+    }
+  }, async () => {
     return { users: UsersService.listUsers() };
   });
 
