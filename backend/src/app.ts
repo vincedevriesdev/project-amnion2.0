@@ -16,13 +16,46 @@ import { mobileRoutes } from './modules/mobile/mobile.routes.js';
 import fastifyStatic from '@fastify/static';
 import path from 'path';
 import fs from 'fs';
+import http from 'http';
+import https from 'https';
+import net from 'net';
+
+const certPath = `/etc/letsencrypt/live/${CONFIG.SERVER_DOMAIN}/fullchain.pem`;
+const keyPath = `/etc/letsencrypt/live/${CONFIG.SERVER_DOMAIN}/privkey.pem`;
+const hasTls = fs.existsSync(certPath) && fs.existsSync(keyPath);
 
 const fastify = Fastify({
   logger: {
     level: 'info'
   },
   // Only local reverse proxies are trusted. Direct clients cannot spoof request.ip.
-  trustProxy: ['127.0.0.1', '::1']
+  trustProxy: ['127.0.0.1', '::1'],
+  serverFactory: (handler: any): any => {
+    const httpServer = http.createServer(handler as any);
+    if (!hasTls) {
+      return httpServer;
+    }
+    const httpsServer = https.createServer({
+      cert: fs.readFileSync(certPath),
+      key: fs.readFileSync(keyPath),
+      minVersion: 'TLSv1.2'
+    }, handler as any);
+
+    const dualServer = net.createServer(socket => {
+      socket.once('data', buffer => {
+        socket.pause();
+        socket.unshift(buffer);
+        if (buffer[0] === 22) { // 0x16 = TLS Handshake ClientHello
+          httpsServer.emit('connection', socket);
+        } else {
+          httpServer.emit('connection', socket);
+        }
+        process.nextTick(() => socket.resume());
+      });
+    });
+
+    return dualServer as any;
+  }
 });
 
 async function startServer() {
@@ -83,7 +116,7 @@ async function startServer() {
 
     // 5. Start Server Listening
     await fastify.listen({ port: CONFIG.PORT, host: CONFIG.HOST });
-    console.log(`🚀 Amnion Backend Control Daemon running on http://${CONFIG.HOST}:${CONFIG.PORT}`);
+    console.log(`🚀 Amnion Backend Control Daemon running on ${hasTls ? 'dual HTTP/HTTPS' : 'http'} on port ${CONFIG.PORT}`);
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);
